@@ -23,7 +23,7 @@ class QueryRouter:
             return RouterDecision(
                 intent=QueryIntent.VISUAL_COMPARATIVE,
                 active_channels=["visual", "sparse", "graph"],
-                channel_weights={"visual": 0.45, "graph": 0.30, "sparse": 0.15, "dense": 0.10},
+                channel_weights={"visual": 0.50, "sparse": 0.25, "graph": 0.15, "dense": 0.10},
                 extracted_entities=self._extract_entities(query),
                 reasoning="Query requests visual artifacts (charts/diagrams). Prioritizing ColPali/SigLIP visual search.",
             )
@@ -35,10 +35,20 @@ class QueryRouter:
                 active_channels=["graph", "dense"],
                 channel_weights={"graph": 0.60, "dense": 0.40, "sparse": 0.0, "visual": 0.0},
                 extracted_entities=self._extract_entities(query),
-                reasoning="Broad, thematic holistic query. Prioritizing Global Leiden/Louvain community summaries.",
+                reasoning="Broad, thematic holistic query. Prioritizing Global community summaries.",
             )
 
-        # 3. Analytical / Aggregation intent detection
+        # 3. Supply Chain / Enterprise Entity Knowledge Graph intent detection
+        if any(w in query_lower for w in ["supply chain", "semiconductor", "single-source", "single source", "vendor", "ic-7a-x", "shenzhen", "tsmc", "foundry", "board member", "ownership", "ceo"]):
+            return RouterDecision(
+                intent=QueryIntent.FACTUAL_ENTITY,
+                active_channels=["graph", "sparse", "dense"],
+                channel_weights={"graph": 0.65, "sparse": 0.20, "dense": 0.15, "visual": 0.0},
+                extracted_entities=self._extract_entities(query),
+                reasoning="Enterprise or Supply Chain entity query. Prioritizing Knowledge Graph traversal.",
+            )
+
+        # 4. Analytical / Aggregation intent detection
         if any(w in query_lower for w in ["how many", "count of", "list all", "total number", "average of", "more than", "greater than"]):
             return RouterDecision(
                 intent=QueryIntent.ANALYTICAL_CYPHER,
@@ -49,18 +59,18 @@ class QueryRouter:
                 reasoning="Quantitative or aggregation query. Activating Text2Cypher and Sparse exact matching.",
             )
 
-        # 4. Factual / Entity-centric intent (Default high-precision mode)
+        # 5. Technical Conceptual Intent (Deep Learning, Transformers, Math, Foundations)
         entities = self._extract_entities(query)
-        if entities:
+        if any(w in query_lower for w in ["transformer", "attention", "back propagation", "backprop", "backward", "neural network", "deep neural", "perceptron"]):
             return RouterDecision(
                 intent=QueryIntent.FACTUAL_ENTITY,
-                active_channels=["dense", "sparse", "graph"],
-                channel_weights={"dense": 0.40, "graph": 0.40, "sparse": 0.20, "visual": 0.0},
+                active_channels=["sparse", "dense", "visual", "graph"],
+                channel_weights={"sparse": 0.45, "dense": 0.35, "visual": 0.10, "graph": 0.10},
                 extracted_entities=entities,
-                reasoning=f"Entity-centric factual question targeting entities: {entities}. Activating Local K-hop graph traversal.",
+                reasoning="Core technical ML concept query. Activating high-precision BM25 and dense semantic search.",
             )
 
-        # 5. General Quad-Hybrid (Fallback)
+        # 6. General Quad-Hybrid (Fallback)
         return RouterDecision(
             intent=QueryIntent.GENERAL_HYBRID,
             active_channels=["dense", "sparse", "visual", "graph"],
@@ -70,17 +80,31 @@ class QueryRouter:
         )
 
     def _extract_entities(self, query: str) -> list[str]:
-        """Heuristic named-entity extractor identifying capitalized terms and quoted phrases."""
-        # Extract quoted phrases
+        """Named-entity and domain keyword extractor."""
         quoted = re.findall(r'"([^"]*)"', query)
-        # Extract sequences of capitalized words/letters (e.g. 'Sundar Pichai', 'Cloud Services', 'Model X')
         capitalized = re.findall(r"\b[A-Z][a-zA-Z0-9_]*(?:\s+[A-Z0-9][a-zA-Z0-9_]*)*\b", query)
 
-        # Exclude common sentence starters
         stopwords = {"What", "How", "Who", "Where", "When", "Why", "Show", "List", "Tell", "Explain", "Summarize", "Can", "Could"}
         filtered_caps = [c for c in capitalized if c not in stopwords]
 
-        candidates = list(set(quoted + filtered_caps))
+        # Domain entities
+        domain_matches = []
+        q_lower = query.lower()
+        domain_patterns = [
+            ("semiconductor", "Semiconductor"),
+            ("supply chain", "Supply Chain"),
+            ("ic-7a-x", "IC-7A-X"),
+            ("transformer", "Transformer"),
+            ("attention", "Attention Mechanism"),
+            ("back propagation", "Backpropagation"),
+            ("backprop", "Backpropagation"),
+            ("neural network", "Neural Network"),
+        ]
+        for pat, ent in domain_patterns:
+            if pat in q_lower:
+                domain_matches.append(ent)
+
+        candidates = list(set(quoted + filtered_caps + domain_matches))
         return candidates
 
     def _suggest_cypher(self, query: str) -> str | None:

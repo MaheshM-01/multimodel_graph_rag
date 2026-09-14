@@ -86,8 +86,22 @@ def compute_ndcg_at_k(retrieved_pages: List[int], expected_pages: List[int], k: 
 # ---------------------------------------------------------------------------
 
 def compute_ragas_context_precision(retrieved_pages: List[int], expected_pages: List[int], k: int = 5) -> float:
-    """Computes RAGAS Context Precision @ K."""
-    return compute_map_at_k(retrieved_pages, expected_pages, k=k)
+    """Computes RAGAS Context Precision @ K:
+    Measures the signal-to-noise ratio of retrieved contexts by calculating
+    the weighted precision of relevant items across the ranked list.
+    """
+    if not retrieved_pages or not expected_pages:
+        return 0.0
+    top_k = retrieved_pages[:k]
+    score = 0.0
+    num_hits = 0
+    for idx, p in enumerate(top_k, start=1):
+        if p in expected_pages:
+            num_hits += 1
+            score += (num_hits / idx)
+    if num_hits == 0:
+        return 0.0
+    return score / num_hits
 
 
 def compute_ragas_context_recall(retrieved_text: str, expected_concepts: List[str]) -> float:

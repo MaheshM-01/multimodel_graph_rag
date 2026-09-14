@@ -57,25 +57,22 @@ class LLMClient:
                             "model": groq_model,
                             "messages": messages,
                             "temperature": temperature,
-                            "max_tokens": max_tokens,
+                            "max_tokens": min(max_tokens, 600),
                         },
                     )
                     if res.status_code == 200:
                         data = res.json()
                         return data["choices"][0]["message"]["content"]
-                    logger.warning(f"Groq API returned status {res.status_code}: {res.text[:200]}")
+                    logger.warning(f"Groq API returned status {res.status_code} ({res.text[:120]}), falling back to NVIDIA NIM.")
             except Exception as exc:
-                logger.warning(f"Groq API request failed ({exc}).")
+                logger.warning(f"Groq API request failed ({exc}), falling back to NVIDIA NIM.")
 
-        # 2. Try NVIDIA NIM API for Multimodal / High-Capacity LLMs
+        # 2. Try NVIDIA NIM API for Multimodal / High-Capacity LLMs or fallback
         nvidia_key = self.settings.NVIDIA_API_KEY or os.getenv("NVIDIA_API_KEY")
-        if nvidia_key and (
-            any(k in selected_model.lower() for k in ["nvidia", "meta/", "llama", "phi-3", "mistralai"])
-            or not groq_key
-        ):
+        if nvidia_key:
             try:
                 nvidia_model = selected_model
-                if "/" not in nvidia_model:
+                if "/" not in nvidia_model or any(k in nvidia_model.lower() for k in ["groq", "qwen", "default"]):
                     nvidia_model = self.settings.DEFAULT_VLM_MODEL
 
                 max_nv_chars = 14000

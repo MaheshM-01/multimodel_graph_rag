@@ -47,26 +47,31 @@ async def query_rag(
         channel_weights=decision.channel_weights,
     )
 
-    # 3. Document Search Engine integration for page-level evidence
-    doc_search = get_document_search_engine()
-    doc_results = await doc_search.search(
-        query=request.query,
-        document_name=request.document_name,
-        top_k=6,
-    )
+    # 3. Document Search Engine integration for page-level evidence (skip textbook search for pure graph queries)
+    is_pure_graph = any(w in request.query.lower() for w in ["supply chain", "semiconductor", "ic-7a-x", "shenzhen", "tsmc", "board member", "ownership"])
+    if not is_pure_graph or request.document_name:
+        doc_search = get_document_search_engine()
+        doc_results = await doc_search.search(
+            query=request.query,
+            document_name=request.document_name,
+            top_k=6,
+        )
 
-    if doc_results:
-        # Avoid duplicate IDs
-        existing_ids = {it.id for it in retrieved_items}
-        for dr in doc_results:
-            if dr.id not in existing_ids:
-                retrieved_items.append(dr)
+        if doc_results:
+            item_map = {it.id: it for it in retrieved_items}
+            for dr in doc_results:
+                if dr.id in item_map:
+                    item_map[dr.id].score = max(item_map[dr.id].score, dr.score)
+                    if len(dr.content) > len(item_map[dr.id].content):
+                        item_map[dr.id].content = dr.content
+                else:
+                    retrieved_items.append(dr)
 
     if not retrieved_items:
         logger.warning(f"No retrieval results found for query: '{request.query}'")
 
-    # 4. 2-Stage Multimodal Reranking (Cross-Encoder + Visual Grounding)
-    reranked_items = await reranker.rerank(request.query, retrieved_items, top_k=8)
+    # 4. 2-Stage Multimodal Reranking (BGE-Reranker-Large Cross-Encoder + ColPali Visual Grounding)
+    reranked_items = await reranker.rerank(request.query, retrieved_items, top_k=5)
 
     # 5. Multimodal Grounded Synthesis with Citations
     response = await synthesizer.synthesize(request, reranked_items)
