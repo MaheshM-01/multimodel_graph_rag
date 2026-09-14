@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SynapseRAG Spatial Neural Core - Multimodal v2.4 Enterprise RAG Platform">
+    <title>SynapseRAG | Spatial Neural Core • Multimodal v2.4</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Vis-Network for Force-Directed Knowledge Graph Visualizer -->
+    <script type="text/javascript" src="/static/js/vis-network.min.js"></script>
+
+    <!-- Marked for Markdown Rendering -->
+    <script src="/static/js/marked.min.js"></script>
+
+    <!-- Custom SynapseRAG Stylesheet -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Top Global Header -->
+    <header class="top-nav-bar">
+        <div class="top-search-box">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" placeholder="Semantic hybrid vector search or query graph schema... (Cmd+K)" id="global-search-input">
+            <span class="cmd-k-badge">⌘K</span>
+        </div>
+
+        <div class="top-right-actions">
+            <div class="cluster-status-pill">
+                <span class="status-dot green"></span>
+                <span class="cluster-text">US-East-1 Cluster • <strong>Connected</strong></span>
+            </div>
+            <button class="btn-tenancy" id="btn-tenancy">ENTERPRISE TENANCY</button>
+            <button class="icon-btn" id="btn-notifications" title="Notifications">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            </button>
+            <button class="icon-btn" id="btn-config" title="Configuration">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+            </button>
+            <button class="icon-btn" id="btn-toggle-layout" title="Toggle Provenance Sidebar (Maximize Canvas)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- 3-Column Enterprise App Layout -->
+    <div class="app-layout">
+        <!-- 1. LEFT SIDEBAR: Architecture & Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-brand-block">
+                <div class="brand-badge-row">
+                    <div class="brand-cube-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                            <polyline points="2 17 12 22 22 17"></polyline>
+                            <polyline points="2 12 12 17 22 12"></polyline>
+                        </svg>
+                    </div>
+                    <div class="brand-names">
+                        <h2>SynapseRAG</h2>
+                        <span class="sub-brand">SPATIAL NEURAL CORE</span>
+                    </div>
+                </div>
+                <div class="edition-pill">
+                    <span>MULTIMODAL V2.4</span>
+                    <span class="pill-dot">•</span>
+                    <span class="pill-orange">ENTERPRISE</span>
+                </div>
+            </div>
+
+            <div class="nav-section-title">CORE ARCHITECTURE</div>
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="tab-chat" id="btn-nav-chat">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    <span class="nav-label">RAG Assistant</span>
+                    <span class="nav-dot-active"></span>
+                </button>
+                <button class="nav-item" data-tab="tab-graph" id="btn-nav-graph">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                    <span class="nav-label">Graph Visualizer</span>
+                    <span class="nav-counter">8 Nodes</span>
+                </button>
+                <button class="nav-item" data-tab="tab-ingest" id="btn-nav-ingest">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                    <span class="nav-label">Knowledge Base & Ingestion</span>
+                    <span class="nav-dot-orange"></span>
+                </button>
+                <button class="nav-item" data-tab="tab-telemetry" id="btn-nav-inspector">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                    <span class="nav-label">Reasoning Inspector</span>
+                    <span class="nav-tag-live">LIVE</span>
+                </button>
+                <button class="nav-item" data-tab="tab-graph" id="btn-nav-schema">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span class="nav-label">Schema & Ontology</span>
+                </button>
+                <button class="nav-item" data-tab="tab-telemetry" id="btn-nav-telemetry">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                    <span class="nav-label">System Health</span>
+                    <span class="nav-counter">99.98%</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile-widget">
+                    <div class="user-avatar-initials">ER</div>
+                    <div class="user-details">
+                        <div class="user-name">Dr. Elena Rostova</div>
+                        <div class="user-role">Principal AI Architect</div>
+                    </div>
+                    <button class="btn-profile-settings" id="btn-profile-gear" title="Profile Settings">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 2. CENTER WORKSPACE: Reasoning Assistant / Chat -->
+        <main class="center-workspace">
+            <section class="tab-pane active" id="tab-chat">
+                <!-- Title Header -->
+                <div class="workspace-title-row">
+                    <div class="title-left">
+                        <div class="title-with-pill">
+                            <h1>Multimodal Reasoning Assistant</h1>
+                            <span class="pill-cognitive">v2.4 - COGNITIVE</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat & Thought Feed -->
+                <div class="chat-feed-scroll" id="chat-messages">
+                    <!-- Agent Welcome Card -->
+                    <div class="agent-welcome-card">
+                        <div class="welcome-header">
+                            <div class="welcome-agent-identity">
+                                <div class="agent-avatar-sq">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2a10 10 0 0 1 10 10c0 5.5-4.5 10-10 10S2 17.5 2 12 6.5 2 12 2zm0 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"></path></svg>
+                                </div>
+                                <div class="welcome-titles">
+                                    <h3>AI Synapse Agent</h3>
+                                    <span class="tag-core-engine">CORE ENGINE</span>
+                                </div>
+                            </div>
+                            <span class="memory-hydration-note">Memory: 12 Nodes Hydrated</span>
+                        </div>
+                        <p class="welcome-body-text">
+                            Welcome to the <strong>Multimodal Graph RAG Engine</strong>. Execute high-order Cypher traversals across corporate relationships, query un-redacted financial balance sheets, and isolate physical failure points inside engineering schematics with sub-pixel spatial bounding box verification.
+                        </p>
+
+                        <div class="prompt-grid-header">RECOMMENDED HIGH-DIMENSIONAL PROMPTS</div>
+                        <div class="prompt-grid">
+                            <button class="prompt-card" onclick="executePrompt('Traverse CEO, Board & Subsidiary Ownership Tree for AlphaCorp')">
+                                <span class="p-icon">🕸️</span>
+                                <span class="p-text">Traverse CEO, Board & Subsidiary Ownership Tree</span>
+                                <span class="p-arrow">➔</span>
+                            </button>
+                            <button class="prompt-card" onclick="executePrompt('Cross-reference PCB Schematic 7A-X with 10-K Risk Filing for single-sourcing')">
+                                <span class="p-icon">📄</span>
+                                <span class="p-text">Cross-reference PCB Schematic 7A-X with 10-K Risk Filing</span>
+                                <span class="p-arrow">➔</span>
+                            </button>
+                            <button class="prompt-card" onclick="executePrompt('Show Q3 Revenue vs Fab Bottleneck Analysis and component failure trends')">
+                                <span class="p-icon">📊</span>
+                                <span class="p-text">Show Q3 Revenue vs Fab Bottleneck Analysis</span>
+                                <span class="p-arrow">➔</span>
+                            </button>
+                            <button class="prompt-card" onclick="executePrompt('Global Community Summary (Leiden Cluster k=3) for thematic risk factors')">
+                                <span class="p-icon">🌐</span>
+                                <span class="p-text">Global Community Summary (Leiden Cluster k=3)</span>
+                                <span class="p-arrow">➔</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- User Question Thread -->
+                    <div class="chat-thread-group">
+                        <div class="user-thread-row">
+                            <div class="user-meta-info">
+                                <span class="timestamp">14:02:18 EST</span>
+                                <span class="author">Dr. Elena Rostova</span>
+                            </div>
+                            <div class="user-avatar-sm">ER</div>
+                        </div>
+                        <div class="user-speech-bubble">
+                            <p>Correlate the component overheating warning in <code class="file-code">PCB-Schematic-v2.png</code> with the supply chain vulnerability reported in <code class="file-code">SEC-10K-Q3.pdf</code>. Are we single-sourced?</p>
+                            <div class="attached-evidence-chips">
+                                <span class="evidence-chip"><span class="icon">📄</span> SEC-10K-Q3.pdf <span class="page-tag">Page 42</span></span>
+                                <span class="evidence-chip"><span class="icon">🖼️</span> PCB-Schematic-v2.png <span class="coord-tag">[LOC: 304, 142]</span></span>
+                            </div>
+                        </div>
+
+                        <!-- Assistant Grounded Synthesis Response -->
+                        <div class="synthesis-thread-response">
+                            <div class="synthesis-header">
+                                <div class="synthesis-title-row">
+                                    <div class="agent-avatar-mini">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                                    </div>
+                                    <span class="synthesis-title">Synapse Engine - Grounded Synthesis</span>
+                                    <span class="badge-fused-hops">Fused 3 Hops</span>
+                                </div>
+                            </div>
+
+                            <!-- Entity Resolution Tags -->
+                            <div class="entity-resolution-tags">
+                                <span class="tag-entity">Organization: <strong>AlphaCorp</strong></span>
+                                <span class="tag-entity">Fab: <strong>Shenzhen-04</strong></span>
+                                <span class="tag-entity risk">Risk: <strong>Single-Source Component 7A-X</strong></span>
+                                <span class="tag-entity confidence">Confidence: <strong>99.4%</strong></span>
+                            </div>
+
+                            <div class="synthesis-text">
+                                <p><strong>Synthesis Confirmation:</strong> Yes, AlphaCorp is critically single-sourced on this specific power-stage semiconductor. A cross-modal alignment between the hardware layout and the corporate disclosure indicates a direct operational vulnerability:</p>
+                            </div>
+
+                            <!-- Grounding Box 1: Spatial Vision Grounding -->
+                            <div class="grounding-callout-card spatial">
+                                <div class="callout-header">
+                                    <span class="callout-title">SPATIAL VISION GROUNDING</span>
+                                    <span class="callout-metric">IoU: 0.93</span>
+                                </div>
+                                <p>In <strong>PCB-Schematic-v2.png</strong>, component <strong>IC-7A-X</strong> (coordinates <code class="coord-val">x:304, y:142</code>) operates in the high-heat dissipation loop. The thermal simulation node points to an unregulated spike under maximum duty cycle.</p>
+                            </div>
+
+                            <!-- Grounding Box 2: Graph Topology Corroboration -->
+                            <div class="grounding-callout-card graph">
+                                <div class="callout-header">
+                                    <span class="callout-title">GRAPH TOPOLOGY & 10-K CORROBORATION</span>
+                                    <span class="callout-metric">SEC Item 1A (p.42)</span>
+                                </div>
+                                <p>Traversing <strong>Neo4j</strong> via <code class="cypher-inline">[:MANUFACTURED_AT] ➔ (:Fab {id: 'Shenzhen-04'})</code> confirms this component is fabricated exclusively at a single Taiwanese subcontract facility. Page 42 of the Q3 SEC filing explicitly states that fab line substitution requires a 9-month requalification cycle.</p>
+                            </div>
+
+                            <!-- Bottom Action Bar -->
+                            <div class="synthesis-actions-bar">
+                                <button class="btn-synth-action"><span class="icon">📋</span> Copy Synthesis</button>
+                                <button class="btn-synth-action" onclick="document.getElementById('btn-nav-graph').click()"><span class="icon">🕸️</span> Inspect Subgraph (14 nodes)</button>
+                                <button class="btn-synth-action"><span class="icon">💾</span> Save Insight</button>
+                                <span class="grounding-badge-check"><span class="check-icon">🛡️</span> Fully Grounded in 2 Citations</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Floating Query Console -->
+                <div class="query-console-wrapper">
+                    <!-- Attached Document Context Banner -->
+                    <div class="attached-doc-banner" id="attached-doc-banner" style="display: none;">
+                        <div class="attached-doc-left">
+                            <span class="doc-badge-icon" id="attached-doc-icon">📄</span>
+                            <img id="attached-doc-img-preview" class="attached-doc-thumb" style="display: none; width: 28px; height: 28px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color);" alt="Thumbnail">
+                            <span class="doc-badge-title" id="attached-doc-name">document.pdf</span>
+                            <span class="doc-badge-status" id="attached-doc-status">Ready for Q&amp;A</span>
+                        </div>
+                        <div class="attached-doc-right">
+                            <button type="button" class="btn-doc-banner-action" id="btn-doc-banner-view">👁️ View</button>
+                            <button type="button" class="btn-doc-banner-close" id="btn-doc-banner-close" title="Remove attachment">✕</button>
+                        </div>
+                    </div>
+
+                    <form class="query-form" id="chat-form">
+                        <div class="form-action-left">
+                            <button type="button" class="tool-btn" id="btn-attach-image" title="Upload Image / Schematic (or Paste Image with Ctrl+V)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                            </button>
+                            <button type="button" class="tool-btn" id="btn-attach-doc" title="Upload PDF / Document">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                            </button>
+                            <input type="file" id="input-image-attach" accept="image/*" style="display: none;">
+                            <input type="file" id="input-pdf-attach" accept=".pdf,.png,.jpg,.jpeg,.txt,.md,.json" style="display: none;">
+                            <button type="button" class="tool-btn" id="btn-voice-input" title="Voice Input (Speech Recognition)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                            </button>
+                            <button type="button" class="tool-btn" id="btn-cypher-filter" title="Insert Structured Cypher Filter">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                            </button>
+                        </div>
+                        <input type="text" id="chat-input" placeholder="Ask anything, query the Knowledge Graph, or upload schematics..." autocomplete="off">
+                        <button type="submit" class="btn-synthesize">
+                            <span>Synthesize</span>
+                            <span class="enter-icon">⮑</span>
+                        </button>
+                    </form>
+                    <div class="console-sub-bar">
+                        <div class="sub-bar-left">
+                            <div class="selector-chip dropdown-trigger" id="chip-model-selector" tabindex="0">
+                                <span class="dot-model">🤖</span>
+                                <span>Model: <strong id="selected-model-text">Claude 3.5 Sonnet</strong></span>
+                                <span class="arrow-down">▾</span>
+                                <div class="dropdown-menu" id="model-dropdown-menu">
+                                    <div class="dropdown-item active" data-model="Claude 3.5 Sonnet">Claude 3.5 Sonnet (Hybrid 2M Context)</div>
+                                    <div class="dropdown-item" data-model="GPT-4o Multimodal">GPT-4o Multimodal (Spatial Grounding)</div>
+                                    <div class="dropdown-item" data-model="Gemini 1.5 Pro">Gemini 1.5 Pro (Native 1M Context)</div>
+                                    <div class="dropdown-item" data-model="DeepSeek-R1 (Local)">DeepSeek-R1 (Local Graph Engine)</div>
+                                </div>
+                            </div>
+                            <div class="selector-chip dropdown-trigger" id="chip-rag-selector" tabindex="0">
+                                <span class="rag-mode-icon">⚡</span>
+                                <span>RAG Mode: <strong id="selected-rag-text">Graph + Dense Vector</strong></span>
+                                <span class="arrow-down">▾</span>
+                                <div class="dropdown-menu" id="rag-dropdown-menu">
+                                    <div class="dropdown-item active" data-rag="Graph + Dense Vector">Graph + Dense Vector (Quad-Hybrid RRF)</div>
+                                    <div class="dropdown-item" data-rag="Graph Traversal Only">Graph Traversal Only (Neo4j Cypher)</div>
+                                    <div class="dropdown-item" data-rag="ColPali Visual Grounding">ColPali Visual Grounding (Sub-Pixel Vision)</div>
+                                    <div class="dropdown-item" data-rag="Dense Semantic Search">Dense Semantic Search (Qdrant 768-dim)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sub-bar-right">
+                            <span class="token-counter">Token Budget: <strong>1,420 / 128,000</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Other Tab Panes: Graph, Ingest, Telemetry -->
+            <section class="tab-pane" id="tab-graph">
+                <div class="graph-container">
+                    <div class="graph-toolbar">
+                        <div class="toolbar-left">
+                            <h2>Knowledge Graph Canvas</h2>
+                            <span class="stat-tag" id="graph-stat-nodes">Nodes: 8</span>
+                            <span class="stat-tag" id="graph-stat-edges">Edges: 8</span>
+                        </div>
+                        <div class="toolbar-center">
+                            <div class="graph-search-form">
+                                <span class="graph-search-icon">🔍</span>
+                                <input type="text" id="graph-query-input" placeholder="Query Subgraph (e.g. Backprop, Activation, CNN, Andrew Ng)..." class="graph-search-input">
+                                <button type="button" id="btn-search-subgraph" class="btn-subgraph-search">Explore Graph</button>
+                            </div>
+                            <span class="active-subgraph-tag" id="active-subgraph-tag" style="display: none;"></span>
+                        </div>
+                        <div class="toolbar-right">
+                            <button class="btn-secondary" id="btn-reload-graph">Reset Graph</button>
+                            <button class="btn-primary" id="btn-fit-graph">Fit View</button>
+                        </div>
+                    </div>
+                    <div class="graph-canvas-wrapper">
+                        <div id="graph-canvas"></div>
+                        <div class="graph-legend">
+                            <span class="legend-item"><span class="dot dot-entity"></span> Entity</span>
+                            <span class="legend-item"><span class="dot dot-image"></span> Image/Chart</span>
+                            <span class="legend-item"><span class="dot dot-chunk"></span> Text Chunk</span>
+                            <span class="legend-item"><span class="dot dot-community"></span> Community</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tab-pane" id="tab-ingest">
+                <div class="ingest-container">
+                    <div class="upload-dropzone" id="upload-dropzone">
+                        <div class="dropzone-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                        </div>
+                        <h3>Drag & drop PDF, Schematics, or Image files here</h3>
+                        <p>Layout-aware parsing, ColPali visual chunking, and automatic Neo4j topology construction</p>
+                        <input type="file" id="file-input-ingest" accept=".pdf,.png,.jpg,.jpeg,.md,.txt" style="display: none;">
+                        <button type="button" class="btn-primary" onclick="document.getElementById('file-input-ingest').click()">Browse Local Files</button>
+                    </div>
+
+                    <div class="jobs-section">
+                        <h3>Active Ingestion Tasks</h3>
+                        <div class="jobs-list" id="jobs-list">
+                            <div class="job-card-placeholder">No active background tasks running. Upload a file above to trigger the pipeline.</div>
+                        </div>
+                    </div>
+
+                    <!-- Knowledge Base Documents Library Section -->
+                    <div class="kb-documents-section">
+                        <div class="kb-section-header">
+                            <div>
+                                <h3>Knowledge Base Documents Library</h3>
+                                <p class="kb-section-sub">All indexed multimodal documents, corporate filings, and schematics ready for semantic retrieval and Q&amp;A</p>
+                            </div>
+                            <div class="kb-header-actions">
+                                <span class="kb-count-badge" id="kb-doc-count">Loading docs...</span>
+                                <button type="button" class="btn-secondary" id="btn-refresh-kb">↻ Refresh List</button>
+                            </div>
+                        </div>
+
+                        <div class="kb-documents-grid" id="kb-documents-list">
+                            <div class="kb-card-placeholder">Loading Knowledge Base documents...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tab-pane" id="tab-telemetry">
+                <div class="telemetry-container">
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <span class="metric-label">Knowledge Graph Store</span>
+                            <h3 class="metric-value">Neo4j Bolt 5.20</h3>
+                            <span class="metric-sub text-green">Connected • APOC Enabled • 1.42M Nodes</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Vector Database</span>
+                            <h3 class="metric-value">Qdrant Vector DB</h3>
+                            <span class="metric-sub text-green">Connected • 768-dim ColPali</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Async Task Broker</span>
+                            <h3 class="metric-value">Redis Queue</h3>
+                            <span class="metric-sub text-green">Connected • In-Memory Task Queue</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 3. RIGHT SIDEBAR: Provenance & Grounding -->
+        <aside class="provenance-panel" id="provenance-panel">
+            <div class="panel-header">
+                <div class="panel-title-group">
+                    <span class="panel-icon">📑</span>
+                    <h3>Provenance & Grounding</h3>
+                </div>
+                <span class="pill-badge-amber">3 MODALITIES LINKED</span>
+            </div>
+
+            <div class="panel-scroll-content">
+                <!-- Dynamic Live Node & Entity Inspector -->
+                <div class="panel-section" id="panel-node-inspector">
+                    <div class="section-top-label">
+                        <span>LIVE NODE & ENTITY INSPECTOR</span>
+                        <span class="node-id-badge" id="inspector-node-badge">ID: IC-7A-X</span>
+                    </div>
+                    <div class="node-inspector-card" id="right-node-inspector">
+                        <div class="inspector-card-header">
+                            <span class="inspector-badge-type" id="inspector-type-pill">Entity</span>
+                            <h4 class="inspector-title" id="inspector-node-name">IC-7A-X</h4>
+                        </div>
+                        <div class="node-attributes-table" id="inspector-node-attributes">
+                            <div class="attr-row">
+                                <span class="attr-key">Category:</span>
+                                <span class="attr-val" id="inspector-attr-category">Power Management</span>
+                            </div>
+                            <div class="attr-row">
+                                <span class="attr-key">Status / Risk:</span>
+                                <span class="attr-val text-red strong" id="inspector-attr-risk">Single-Source Vulnerability</span>
+                            </div>
+                            <div class="attr-row">
+                                <span class="attr-key">Modality:</span>
+                                <span class="attr-val text-orange strong" id="inspector-attr-modality">Visual (Schematic) + Graph</span>
+                            </div>
+                            <div class="attr-row">
+                                <span class="attr-key">Centrality:</span>
+                                <span class="attr-val" id="inspector-attr-centrality">0.87 (Critical Bridge)</span>
+                            </div>
+                        </div>
+                        <div class="inspector-relations-box" id="inspector-relations-box">
+                            <div class="relations-label">Connected Graph Relationships:</div>
+                            <div class="relation-tags" id="inspector-relation-tags">
+                                <span class="rel-tag">[:MANUFACTURED_AT] ➔ Shenzhen-04</span>
+                                <span class="rel-tag">[:DOCUMENTED_IN] ➔ PCB-Schematic-v2.png</span>
+                                <span class="rel-tag">[:RISK_CITED] ➔ SEC-10K-Q3.pdf</span>
+                            </div>
+                        </div>
+                        <div class="inspector-actions">
+                            <button type="button" class="btn-inspector-action" id="btn-inspect-query-node" title="Query about this node">
+                                <span>💬 Query Entity</span>
+                            </button>
+                            <button type="button" class="btn-inspector-action" id="btn-inspect-focus-graph" title="Focus node in graph">
+                                <span>🎯 Focus Canvas</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Visual Bounding Evidence -->
+                <div class="panel-section">
+                    <div class="section-top-label">
+                        <span>VISUAL BOUNDING EVIDENCE</span>
+                        <span class="metric-pct">99.1% Confidence</span>
+                    </div>
+                    <div class="visual-evidence-card">
+                        <div class="schematic-view-box">
+                            <img src="/static/assets/pcb_schematic.jpg" alt="PCB Schematic" class="schematic-img">
+                            <!-- Glowing Spatial Bounding Box Overlay -->
+                            <div class="schematic-bbox" style="top: 36%; left: 44%; width: 14%; height: 26%;">
+                                <span class="bbox-tag">IC-7A-X</span>
+                            </div>
+                        </div>
+                        <div class="schematic-caption-row">
+                            <span class="file-name">PCB-Schematic-v2.png</span>
+                            <span class="layer-name">Layer: Top-Copper-VCC</span>
+                        </div>
+                    </div>
+
+                    <!-- Quoted Document Chunk Excerpt -->
+                    <div class="quote-chunk-card">
+                        <div class="chunk-card-header">
+                            <span class="doc-badge">SEC Form 10-K (Item 1A Risk Factors)</span>
+                            <span class="chunk-ref">Chunk #42.8</span>
+                        </div>
+                        <p class="chunk-quote-text">
+                            "...We currently rely on a single third-party foundry located in Shenzhen for 100% of our specialized high-voltage driver chips (Part 7A-X)..."
+                        </p>
+                    </div>
+
+                    <button type="button" class="btn-secondary" id="btn-view-source-doc" style="width: 100%; margin-top: 8px; justify-content: center; display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; padding: 7px 10px;" onclick="const banner = document.getElementById('attached-doc-name'); const doc = (banner && banner.textContent.trim()) || 'Deep Learning Andrew Ng .pdf'; if (window.viewDocument) window.viewDocument(doc);">
+                        <span>👁️ View Whole Document</span>
+                    </button>
+                </div>
+
+                <!-- Section: Executed Cypher Query -->
+                <div class="panel-section">
+                    <div class="section-top-label">
+                        <span>EXECUTED CYPHER QUERY</span>
+                        <button class="btn-copy-code" id="btn-copy-cypher">📋 Copy</button>
+                    </div>
+                    <div class="cypher-code-block">
+                        <pre><code><span class="kw">MATCH</span> p=(d:Document)-[:MENTIONS_RISK]->(c:Component)-[:MANUFACTURED_AT]->(f:Fab)
+<span class="kw">WHERE</span> c.part_id = <span class="str">'7A-X'</span>
+<span class="kw">RETURN</span> p, d.title, f.location, f.risk_index
+<span class="kw">LIMIT</span> <span class="num">25</span>;</code></pre>
+                    </div>
+                    <div class="cypher-footer-info">
+                        <span class="exec-time">Execution time: <strong>4.8ms</strong></span>
+                        <a href="javascript:void(0)" class="open-vis-link" onclick="document.getElementById('btn-nav-graph').click()">Open in Visualizer ↗</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-bottom-status">
+                <div class="sync-status-row">
+                    <span class="status-dot green"></span>
+                    <span>Knowledge Graph Synced</span>
+                </div>
+                <span class="cluster-tag">Cluster Neo4j-81</span>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Floating Toast Notification System -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Document Preview & Inspection Modal -->
+    <div class="modal-overlay" id="doc-preview-modal" style="display: none;">
+        <div class="modal-card doc-preview-modal-card">
+            <div class="modal-header">
+                <div class="doc-modal-title-group">
+                    <span class="doc-modal-icon" id="preview-modal-icon">📄</span>
+                    <div>
+                        <h3 id="preview-modal-title">Document Preview</h3>
+                        <span class="doc-modal-meta" id="preview-modal-meta">Loading details...</span>
+                    </div>
+                </div>
+                <div class="modal-header-actions">
+                    <a id="btn-open-external" href="#" target="_blank" class="btn-secondary" style="text-decoration: none; font-size: 11.5px; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px;">Open in Tab ↗</a>
+                    <button type="button" class="btn-close-modal" id="btn-close-doc-modal">✕</button>
+                </div>
+            </div>
+            <div class="doc-preview-content" id="doc-preview-content">
+                <iframe id="doc-preview-iframe" src="" style="width: 100%; height: 500px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: #FFFFFF;"></iframe>
+            </div>
+            <div class="modal-footer doc-modal-footer">
+                <button type="button" class="btn-secondary btn-delete-doc-modal" id="btn-modal-delete-doc">🗑️ Delete Document</button>
+                <button type="button" class="btn-primary" id="btn-modal-ask-doc">💬 Ask Questions in Chat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/app.js?v=2.7.0"></script>
+    <script src="/static/js/chat.js?v=2.7.0"></script>
+    <script src="/static/js/graph_view.js?v=2.7.0"></script>
+    <script src="/static/js/ingest_view.js?v=2.7.0"></script>
+</body>
+</html>

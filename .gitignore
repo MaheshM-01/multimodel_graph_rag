@@ -1,0 +1,42 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+*.pyo
+*.pyd
+*.so
+build/
+dist/
+wheels/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Scratch & Temporary testing scripts
+scratch/
+*.log
+
+# Large media binaries & cached renders
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.webp
+data/media_store/.cache/
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
