@@ -198,19 +198,16 @@ function initKnowledgeBaseLibrary() {
     loadKnowledgeBaseDocuments();
 }
 
+let autoRetryTimer = null;
+
 async function loadKnowledgeBaseDocuments() {
     const listEl = document.getElementById("kb-documents-list");
     const countBadge = document.getElementById("kb-doc-count");
     if (!listEl) return;
 
-    try {
-        const response = await fetch("/api/v1/documents");
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const docs = await response.json();
-        if (countBadge) countBadge.textContent = `${docs.length} ${docs.length === 1 ? 'Document' : 'Documents'}`;
-
-        if (docs.length === 0) {
+    // Helper to render documents cards
+    function renderDocCards(docs, isCached = false) {
+        if (!docs || docs.length === 0) {
             listEl.innerHTML = `
                 <div class="kb-card-placeholder">
                     No documents currently in the Knowledge Base. Upload PDF, schematics, or image files above to build your multimodal index.
@@ -219,11 +216,18 @@ async function loadKnowledgeBaseDocuments() {
             return;
         }
 
-        listEl.innerHTML = docs.map(doc => {
+        const cacheNotice = isCached ? `
+            <div style="grid-column: 1 / -1; background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 8px; padding: 8px 14px; font-size: 12px; color: #92400E; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <span>⚠️ Backend server offline. Showing <strong>${docs.length}</strong> cached documents. Attempting to reconnect...</span>
+                <button type="button" onclick="loadKnowledgeBaseDocuments()" style="background:#D97706;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;">Retry</button>
+            </div>
+        ` : '';
+
+        listEl.innerHTML = cacheNotice + docs.map(doc => {
             const isPdf = doc.extension === ".pdf";
             const isImg = [".png", ".jpg", ".jpeg", ".webp"].includes(doc.extension);
             const icon = isPdf ? "📄" : (isImg ? "🖼️" : "📑");
-            const dateStr = new Date(doc.modified_at * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+            const dateStr = doc.modified_at ? new Date(doc.modified_at * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : "Recently Added";
 
             return `
                 <div class="kb-doc-card" id="doc-card-${escapeForAttr(doc.filename)}">
@@ -232,16 +236,16 @@ async function loadKnowledgeBaseDocuments() {
                         <div class="kb-doc-details">
                             <div class="kb-doc-filename" title="${escapeHtml(doc.filename)}">${escapeHtml(doc.filename)}</div>
                             <div class="kb-doc-meta">
-                                <span>${doc.size_human}</span>
+                                <span>${doc.size_human || "N/A"}</span>
                                 <span>•</span>
                                 <span>${dateStr}</span>
                                 <span>•</span>
-                                <span class="kb-doc-status-badge">Indexed</span>
+                                <span class="kb-doc-status-badge">${doc.status || "Indexed"}</span>
                             </div>
                         </div>
                     </div>
                     <div class="kb-card-actions">
-                        <button type="button" class="btn-kb-action" onclick="viewDocument('${escapeForAttr(doc.filename)}', '${doc.size_human}', '${doc.mime_type}')" title="View document in viewer">
+                        <button type="button" class="btn-kb-action" onclick="viewDocument('${escapeForAttr(doc.filename)}', '${doc.size_human || ""}', '${doc.mime_type || ""}')" title="View document in viewer">
                             <span>👁️ View</span>
                         </button>
                         <button type="button" class="btn-kb-action primary" onclick="askDocument('${escapeForAttr(doc.filename)}')" title="Ask questions about this document">
@@ -254,15 +258,76 @@ async function loadKnowledgeBaseDocuments() {
                 </div>
             `;
         }).join("");
+    }
+
+    try {
+        const response = await fetch("/api/v1/documents");
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const docs = await response.json();
+        
+        // Cache valid documents list
+        try {
+            localStorage.setItem("synapse_cached_docs", JSON.stringify(docs));
+        } catch (e) {
+            console.warn("Storage quota exceeded or storage unavailable");
+        }
+
+        if (countBadge) {
+            countBadge.textContent = `${docs.length} ${docs.length === 1 ? 'Document' : 'Documents'}`;
+            countBadge.style.color = "";
+        }
+
+        if (autoRetryTimer) {
+            clearTimeout(autoRetryTimer);
+            autoRetryTimer = null;
+        }
+
+        renderDocCards(docs, false);
 
     } catch (err) {
         console.error("Failed to load Knowledge Base documents:", err);
-        if (listEl) {
+
+        // Check if cached documents exist in localStorage
+        let cachedDocs = null;
+        try {
+            const raw = localStorage.getItem("synapse_cached_docs");
+            if (raw) cachedDocs = JSON.parse(raw);
+        } catch (e) {}
+
+        if (cachedDocs && Array.isArray(cachedDocs) && cachedDocs.length > 0) {
+            if (countBadge) {
+                countBadge.textContent = `${cachedDocs.length} Docs (Cached)`;
+                countBadge.style.color = "#D97706";
+            }
+            renderDocCards(cachedDocs, true);
+        } else {
+            if (countBadge) {
+                countBadge.textContent = "Offline";
+                countBadge.style.color = "#DC2626";
+            }
             listEl.innerHTML = `
-                <div class="kb-card-placeholder" style="color: #DC2626;">
-                    Failed to load documents: ${err.message}
+                <div class="kb-card-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 16px; text-align: center;">
+                    <div style="font-size: 32px; margin-bottom: 8px;">🔌</div>
+                    <div style="font-weight: 600; font-size: 14px; color: #1C1917; margin-bottom: 4px;">
+                        Backend Engine Disconnected
+                    </div>
+                    <div style="font-size: 12px; color: #78716C; max-width: 420px; line-height: 1.5; margin-bottom: 14px;">
+                        Unable to reach the Multimodal API on port 8000 (<code>${escapeHtml(err.message)}</code>). The server may be restarting or offline.
+                    </div>
+                    <button type="button" class="btn-primary" onclick="loadKnowledgeBaseDocuments()" style="padding: 6px 16px; font-size: 12px; border-radius: 6px; cursor: pointer;">
+                        🔄 Retry Connection
+                    </button>
                 </div>
             `;
+        }
+
+        // Schedule auto-retry probe after 4 seconds
+        if (!autoRetryTimer) {
+            autoRetryTimer = setTimeout(() => {
+                autoRetryTimer = null;
+                loadKnowledgeBaseDocuments();
+            }, 4000);
         }
     }
 }

@@ -35,35 +35,47 @@ def format_bytes(size: int) -> str:
 
 
 @router.get("", response_model=list[DocumentMeta], tags=["Documents"])
+@router.get("/", response_model=list[DocumentMeta], tags=["Documents"])
 async def list_documents() -> list[DocumentMeta]:
     """List all documents currently available in the Knowledge Base media store."""
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
     docs: list[DocumentMeta] = []
 
-    for file_path in sorted(STORAGE_DIR.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True):
-        if file_path.is_file() and not file_path.name.startswith("."):
-            st = file_path.stat()
-            mime, _ = mimetypes.guess_type(file_path.name)
-            mime_type = mime or "application/octet-stream"
+    try:
+        files = list(STORAGE_DIR.glob("*"))
+        files.sort(key=lambda p: p.stat().st_mtime if p.is_file() else 0, reverse=True)
+    except Exception as exc:
+        logger.warning(f"Error scanning STORAGE_DIR: {exc}")
+        files = []
 
-            doc_status = "Indexed"
-            for job in JOB_REGISTRY.values():
-                if job.filename == file_path.name:
-                    doc_status = "Completed" if job.status == "completed" else str(job.status).capitalize()
-                    break
+    for file_path in files:
+        try:
+            if file_path.is_file() and not file_path.name.startswith("."):
+                st = file_path.stat()
+                mime, _ = mimetypes.guess_type(file_path.name)
+                mime_type = mime or "application/octet-stream"
 
-            docs.append(
-                DocumentMeta(
-                    filename=file_path.name,
-                    size_bytes=st.st_size,
-                    size_human=format_bytes(st.st_size),
-                    extension=file_path.suffix.lower(),
-                    mime_type=mime_type,
-                    modified_at=st.st_mtime,
-                    status=doc_status,
-                    view_url=f"/api/v1/documents/{file_path.name}/view",
+                doc_status = "Indexed"
+                for job in JOB_REGISTRY.values():
+                    if job.filename == file_path.name:
+                        doc_status = "Completed" if job.status == "completed" else str(job.status).capitalize()
+                        break
+
+                docs.append(
+                    DocumentMeta(
+                        filename=file_path.name,
+                        size_bytes=st.st_size,
+                        size_human=format_bytes(st.st_size),
+                        extension=file_path.suffix.lower(),
+                        mime_type=mime_type,
+                        modified_at=st.st_mtime,
+                        status=doc_status,
+                        view_url=f"/api/v1/documents/{file_path.name}/view",
+                    )
                 )
-            )
+        except Exception as file_err:
+            logger.warning(f"Skipping unreadable file '{file_path.name}': {file_err}")
+            continue
 
     return docs
 

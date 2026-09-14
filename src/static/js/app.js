@@ -193,15 +193,49 @@ function initGlobalShortcuts() {
     }
 }
 
+let isBackendLive = null;
+
 async function initHealthPolling() {
-    try {
-        const response = await fetch("/api/v1/health");
-        if (response.ok) {
-            console.log("SynapseRAG Neural Core health check passed.");
+    const pill = document.querySelector(".cluster-status-pill");
+    const dot = pill ? pill.querySelector(".status-dot") : null;
+    const text = pill ? pill.querySelector(".cluster-text") : null;
+
+    async function checkHealth() {
+        try {
+            const response = await fetch("/api/v1/health", { cache: "no-store" });
+            if (response.ok) {
+                if (isBackendLive !== true) {
+                    isBackendLive = true;
+                    if (dot) {
+                        dot.className = "status-dot green";
+                        dot.style.background = "";
+                        dot.style.boxShadow = "";
+                    }
+                    if (text) text.innerHTML = `US-East-1 Cluster • <strong>Connected</strong>`;
+                    
+                    // Auto-refresh document list if it was offline
+                    if (typeof loadKnowledgeBaseDocuments === "function") {
+                        loadKnowledgeBaseDocuments();
+                    }
+                }
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (err) {
+            if (isBackendLive !== false) {
+                isBackendLive = false;
+                if (dot) {
+                    dot.className = "status-dot red";
+                    dot.style.background = "#EF4444";
+                    dot.style.boxShadow = "0 0 8px rgba(239, 68, 68, 0.7)";
+                }
+                if (text) text.innerHTML = `Backend Core • <strong style="color: #EF4444;">Offline (Port 8000)</strong>`;
+            }
         }
-    } catch (err) {
-        console.warn("Health probe notice: Operating in standalone mode.", err);
     }
+
+    checkHealth();
+    setInterval(checkHealth, 4000);
 }
 
 // Global Toast System

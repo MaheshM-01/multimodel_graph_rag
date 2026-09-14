@@ -740,10 +740,10 @@ window.inspectQuerySubgraph = function(query) {
 
 async function populateAttachMenu(menu) {
     try {
-        const res = await fetch("/api/v1/documents/");
+        const res = await fetch("/api/v1/documents");
         if (!res.ok) return;
         const data = await res.json();
-        const docs = data.documents || [];
+        const docs = Array.isArray(data) ? data : (data.documents || []);
 
         if (docs.length === 0) {
             menu.innerHTML = `<div class="dropdown-item disabled" style="color:#78716C;font-size:12px;">No documents in library</div>`;
