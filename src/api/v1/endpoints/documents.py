@@ -158,8 +158,11 @@ async def preview_document_page(filename: str, page_num: int):
 
 @router.delete("/{filename}", tags=["Documents"])
 async def delete_document(filename: str):
-    """Delete a document from the Knowledge Base media store."""
+    from urllib.parse import unquote
+    unquoted = unquote(filename)
     file_path = STORAGE_DIR / filename
+    if not file_path.exists() or not file_path.is_file():
+        file_path = STORAGE_DIR / unquoted
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -170,8 +173,18 @@ async def delete_document(filename: str):
         file_path.unlink()
         logger.info(f"Deleted document from Knowledge Base: {filename}")
 
+        # Clean up cached page images if any
+        try:
+            import shutil
+            safe_stem = re.sub(r"[^\w\-]", "_", file_path.stem.strip()) or "doc"
+            cache_dir = STORAGE_DIR / ".cache" / "pages" / safe_stem
+            if cache_dir.exists():
+                shutil.rmtree(cache_dir, ignore_errors=True)
+        except Exception as cache_err:
+            logger.warning(f"Could not clean page cache for {filename}: {cache_err}")
+
         # Remove from in-memory job registry if present
-        to_delete_jobs = [jid for jid, job in JOB_REGISTRY.items() if job.filename == filename]
+        to_delete_jobs = [jid for jid, job in JOB_REGISTRY.items() if job.filename in (filename, unquoted)]
         for jid in to_delete_jobs:
             JOB_REGISTRY.pop(jid, None)
 

@@ -195,6 +195,22 @@ function initKnowledgeBaseLibrary() {
         });
     }
 
+    const btnCancelDelete = document.getElementById("btn-cancel-delete");
+    const btnConfirmDelete = document.getElementById("btn-confirm-delete");
+    const deleteModal = document.getElementById("doc-delete-modal");
+
+    if (btnCancelDelete) {
+        btnCancelDelete.addEventListener("click", closeDeleteModal);
+    }
+    if (btnConfirmDelete) {
+        btnConfirmDelete.addEventListener("click", executeDocumentDelete);
+    }
+    if (deleteModal) {
+        deleteModal.addEventListener("click", (e) => {
+            if (e.target === deleteModal) closeDeleteModal();
+        });
+    }
+
     loadKnowledgeBaseDocuments();
 }
 
@@ -251,8 +267,8 @@ async function loadKnowledgeBaseDocuments() {
                         <button type="button" class="btn-kb-action primary" onclick="askDocument('${escapeForAttr(doc.filename)}')" title="Ask questions about this document">
                             <span>💬 Ask Questions</span>
                         </button>
-                        <button type="button" class="btn-kb-action delete" onclick="deleteDocument('${escapeForAttr(doc.filename)}')" title="Delete from Knowledge Base">
-                            <span>🗑️</span>
+                        <button type="button" class="btn-kb-action delete btn-doc-delete" data-filename="${escapeForAttr(doc.filename)}" onclick="deleteDocument('${escapeForAttr(doc.filename)}', event)" title="Delete from Knowledge Base">
+                            <span>🗑️ Delete</span>
                         </button>
                     </div>
                 </div>
@@ -361,10 +377,40 @@ window.viewDocument = function(filename, sizeHuman = "", mimeType = "") {
     modal.style.display = "flex";
 };
 
-// Delete Document from Knowledge Base
-window.deleteDocument = async function(filename) {
-    const confirmDelete = confirm(`Are you sure you want to delete "${filename}" from the Knowledge Base?\n\nThis will remove the file from disk, vector store embeddings, and associated knowledge graph citations.`);
-    if (!confirmDelete) return;
+let pendingDeleteFilename = null;
+
+// Open Delete Confirmation Modal
+window.deleteDocument = function(filename, evt) {
+    if (evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+    }
+    pendingDeleteFilename = filename;
+    const modal = document.getElementById("doc-delete-modal");
+    const nameEl = document.getElementById("delete-modal-docname");
+    if (nameEl) {
+        nameEl.innerHTML = `Are you sure you want to permanently delete <strong>"${escapeHtml(filename)}"</strong> from the Knowledge Base?<br><br><span style="color:#DC2626;font-size:12px;">This will remove the file from disk, vector store embeddings, and associated knowledge graph citations.</span>`;
+    }
+    if (modal) {
+        modal.style.display = "flex";
+    }
+};
+
+window.closeDeleteModal = function() {
+    const modal = document.getElementById("doc-delete-modal");
+    if (modal) modal.style.display = "none";
+    pendingDeleteFilename = null;
+};
+
+window.executeDocumentDelete = async function() {
+    const filename = pendingDeleteFilename;
+    if (!filename) return;
+
+    const confirmBtn = document.getElementById("btn-confirm-delete");
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = "Deleting...";
+    }
 
     try {
         const res = await fetch(`/api/v1/documents/${encodeURIComponent(filename)}`, {
@@ -372,11 +418,14 @@ window.deleteDocument = async function(filename) {
         });
 
         if (!res.ok) {
-            throw new Error(`HTTP ${res.status}: Failed to delete document`);
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.detail || `HTTP ${res.status}: Failed to delete document`);
         }
 
         const data = await res.json();
         if (window.showToast) window.showToast(`Deleted "${filename}" from Knowledge Base`, "success");
+
+        closeDeleteModal();
 
         // Close preview modal if viewing deleted doc
         if (activePreviewDoc && activePreviewDoc.filename === filename) {
@@ -393,7 +442,12 @@ window.deleteDocument = async function(filename) {
 
     } catch (err) {
         console.error("Delete failed:", err);
-        if (window.showToast) window.showToast(`Delete failed: ${err.message}`, "info");
+        if (window.showToast) window.showToast(`Delete failed: ${err.message}`, "error");
+    } finally {
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = "Yes, Delete";
+        }
     }
 };
 

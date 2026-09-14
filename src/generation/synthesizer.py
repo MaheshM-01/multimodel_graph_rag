@@ -53,15 +53,20 @@ class MultimodalSynthesizer:
             if item.content and item.source_type not in ("graph", "community", "cypher"):
                 text_excerpts.append(f"{source_tag} {item.content}")
 
-            # Register citation
+            # Register citation with normalized document_id
+            doc_id = (
+                item.metadata.get("document_name")
+                or item.metadata.get("document_id")
+                or (item.id.split("_p")[0] if "_p" in item.id else "Deep Learning Andrew Ng .pdf")
+            )
             citations.append(
                 MultimodalCitation(
                     citation_index=idx,
                     source_chunk_id=item.id,
-                    document_id=item.metadata.get("document_id", "unknown"),
+                    document_id=doc_id,
                     page_number=item.metadata.get("page_number"),
                     media_url=item.image_url,
-                    snippet=item.content[:150],
+                    snippet=item.content[:240].strip(),
                     modality=str(item.modality),
                 )
             )

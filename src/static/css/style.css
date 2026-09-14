@@ -2440,11 +2440,16 @@ html, body {
 
 .btn-kb-action.delete {
     color: #DC2626;
+    background: #FFF1F2;
+    border-color: #FECDD3;
+    min-width: 86px;
+    justify-content: center;
 }
 
 .btn-kb-action.delete:hover {
     background: #FEE2E2;
     border-color: #F87171;
+    color: #B91C1C;
 }
 
 /* Modal styling */
