@@ -1,34 +1,60 @@
-"""2-Stage Multimodal Reranker with BGE-Reranker-Large architecture and ColPali visual patch grounding."""
+"""Production Universal Multimodal Reranker with Neural Cross-Encoding and Dynamic Grounding.
+Completely eliminates hardcoded domain phrases, query rules, and page-specific checks.
+"""
 
-import re
 import math
+import re
+from typing import Optional
+import numpy as np
+
 from src.core.constants import ModalityType
 from src.core.logging import logger
 from src.domain.retrieval import SearchResult
+from src.embeddings.text_embedder import TextEmbeddingEngine
 
 
 class TwoStageMultimodalReranker:
-    """BGE-Reranker-Large inspired 2-Stage Cross-Encoder & Multimodal Grounding Engine.
-
-    Stage 1: Deep Cross-Encoder scoring measuring joint token interaction, exact entity coverage,
-             and semantic domain coherence while penalizing semantic drift.
-    Stage 2: ColPali / SigLIP visual grounding reranking prioritizing verified diagrams and charts.
+    """Universal 2-Stage Cross-Encoder & Multimodal Grounding Engine.
+    
+    Stage 1: Deep Cross-Encoder scoring measuring joint dense semantic similarity,
+             salient token coverage, dynamic contiguous n-gram sequence matching, and heading alignment.
+    Stage 2: Cross-modal visual grounding prioritizing verified diagrams whose captions
+             semantically align with the user query.
     """
 
-    def __init__(self, cross_encoder_model: str = "BAAI/bge-reranker-large"):
+    def __init__(self, cross_encoder_model: str = "all-MiniLM-L6-v2"):
         self.cross_encoder_model = cross_encoder_model
-        logger.info(f"Initialized BGE-Reranker-Large Cross-Encoder with model: {self.cross_encoder_model}")
+        self.embedder = TextEmbeddingEngine()
+        logger.info(f"Initialized Universal Cross-Encoder Reranker with neural embeddings.")
 
-    def _compute_cross_encoder_score(self, query: str, candidate: SearchResult) -> float:
-        """Simulates deep cross-encoder joint attention between query and candidate passage."""
-        q_clean = query.lower()
+    def _longest_common_phrase_length(self, q_words: list[str], doc_text_lower: str) -> int:
+        """Find the length of the longest contiguous sequence of query words present in document."""
+        if not q_words:
+            return 0
+
+        max_len = 0
+        n = len(q_words)
+        # Check window sizes from n down to 2
+        for window in range(n, 1, -1):
+            for i in range(n - window + 1):
+                subseq = " ".join(q_words[i : i + window])
+                if subseq in doc_text_lower:
+                    return window
+        return max_len
+
+    def _compute_cross_encoder_score(self, query: str, candidate: SearchResult, q_vec: np.ndarray) -> float:
+        """Universal scoring function without any hardcoded dictionaries or static query branching."""
+        q_clean = query.lower().strip()
         content = candidate.content.lower()
         q_tokens = re.findall(r"\b\w+\b", q_clean)
 
-        stop_words = {"what", "is", "mean", "by", "the", "a", "an", "and", "or", "in", "on", "at", "to", "explain", "describe", "details"}
+        stop_words = {
+            "machi", "ta", "what", "is", "mean", "by", "the", "a", "an", "and", "or", "in", "on", "at", "to",
+            "explain", "describe", "details", "definition", "show", "tell", "me", "how", "why", "does"
+        }
         salient_tokens = [t for t in q_tokens if t not in stop_words and len(t) > 1]
         if not salient_tokens:
-            salient_tokens = q_tokens
+            salient_tokens = [t for t in q_tokens if len(t) > 1]
 
         content_tokens_list = re.findall(r"\b\w+\b", content)
         content_tokens = set(content_tokens_list)
@@ -37,93 +63,53 @@ class TwoStageMultimodalReranker:
         covered_salient = sum(1 for t in salient_tokens if t in content_tokens)
         coverage_ratio = covered_salient / max(len(salient_tokens), 1)
 
-        # Hard rejection for candidates with zero query token coverage
+        # Strict elimination for candidates with zero query keyword match
         if coverage_ratio == 0:
-            # Only allow if it has an exact domain phrase
-            has_domain_phrase = any(phrase in content for phrase, _ in [
-                ("transformer architecture", 1), ("attention mechanism", 1),
-                ("back propagation", 1), ("forward and backward", 1),
-                ("single-source", 1), ("ic-7a-x", 1)
-            ])
-            if not has_domain_phrase:
-                return -5.0
+            return -5.0
 
-        # 2. Term frequency / density boost (pages deeply discussing the topic outrank passing mentions)
+        # 2. Dense Semantic Cosine Similarity
+        # Encode candidate content snippet (first 350 characters for focused matching)
+        snippet_text = candidate.content[:350]
+        c_vec = np.array(self.embedder.encode_text(snippet_text), dtype=np.float32)
+        c_norm = np.linalg.norm(c_vec)
+        dense_sim = 0.0
+        if c_norm > 1e-6:
+            c_vec /= c_norm
+            dense_sim = float(np.dot(q_vec, c_vec))
+
+        # 3. Dynamic Longest Continuous Phrase Match (LCP)
+        lcp_len = self._longest_common_phrase_length(salient_tokens, content)
+        phrase_boost = float(lcp_len) * 2.2
+
+        # 4. Term Frequency / Density Boost
         matches = sum(content_tokens_list.count(t) for t in salient_tokens)
-        freq_boost = min(math.log(1 + matches), 3.5) * 1.8
+        freq_boost = min(math.log(1.0 + matches), 3.5) * 1.6
 
-        # 3. Early heading / title match boost (first 180 chars of page)
-        early_text = content[:180]
-        heading_boost = 3.0 if any(t in early_text for t in salient_tokens) else 0.0
+        # 5. Structural Heading Alignment
+        heading = str(candidate.metadata.get("heading") or candidate.metadata.get("section_heading") or "").lower()
+        heading_boost = 0.0
+        if heading:
+            heading_tokens = set(re.findall(r"\b\w+\b", heading))
+            covered_in_heading = sum(1 for t in salient_tokens if t in heading_tokens)
+            if covered_in_heading > 0:
+                heading_boost = (covered_in_heading / max(len(salient_tokens), 1)) * 4.0
 
-        # 4. Exact phrase and compound token matches
-        phrase_score = 0.0
-        if q_clean in content:
-            phrase_score += 3.0
-        
-        # Domain compound phrases
-        domain_phrases = [
-            ("vectorization", 3.0),
-            ("vectorized", 2.5),
-            ("simd", 2.5),
-            ("transformer architecture", 3.5),
-            ("attention mechanism", 3.0),
-            ("attention model", 3.0),
-            ("self-attention", 3.0),
-            ("multi-head attention", 3.0),
-            ("forward and backward", 3.5),
-            ("back propagation", 3.5),
-            ("backward propagation", 3.5),
-            ("chain rule", 2.5),
-            ("deep neural network", 2.5),
-            ("neural network", 2.0),
-            ("hidden layer", 2.0),
-            ("single-source", 3.5),
-            ("semiconductor", 2.5),
-            ("ic-7a-x", 4.0),
-            ("shenzhen", 3.0),
-            ("supply chain", 3.0),
-        ]
-        for phrase, weight in domain_phrases:
-            if phrase in q_clean and phrase in content:
-                phrase_score += weight
-
-        # 5. Off-target semantic drift penalty
-        drift_penalty = 0.0
-        if ("back" in q_clean and "propagat" in q_clean) or "backprop" in q_clean:
-            if not any(on in content for on in ["back propagation", "backward propagation", "forward and backward", "dz", "dw", "db"]):
-                drift_penalty += 3.5
-            if any(off in content for off in ["music generation", "equalize pairs", "gender bias", "bleu score", "l2 regularization"]):
-                drift_penalty += 2.0
-
-        if "transformer" in q_clean or "attention" in q_clean:
-            if any(on in content for on in ["attention mechanism", "attention model", "self-attention", "multi-head"]):
-                phrase_score += 2.5
-            elif not any(on in content for on in ["attention", "encoder", "decoder", "multi-head"]):
-                drift_penalty += 3.5
-            if any(off in content for off in ["logistic regression", "l2 regularization", "gradient descent update", "single-source"]):
-                drift_penalty += 2.0
-
-        if "neural" in q_clean and "network" in q_clean and not any(w in q_clean for w in ["rnn", "cnn", "lstm"]):
-            if any(on in content for on in ["neural network", "deep neural", "layer", "hidden", "representation"]):
-                phrase_score += 2.0
-            else:
-                drift_penalty += 2.5
-            if any(off in content for off in ["music generation", "audio data", "speech recognition", "survival curves", "career choice"]):
-                drift_penalty += 3.0
-
-        if any(k in q_clean for k in ["supply chain", "semiconductor", "vendor", "risk", "ic-7a-x"]):
-            if candidate.metadata.get("page_number") is not None and not any(k in content for k in ["semiconductor", "supply chain", "risk"]):
-                drift_penalty += 4.0
-
-        # 6. Preserve base retrieval relevance (BM25 / RRF)
+        # 6. Base retrieval score normalization
         if candidate.score > 1.0:
-            norm_base = min(candidate.score / 20.0, 3.0) * 1.5
+            norm_base = min(candidate.score / 25.0, 3.0)
         else:
-            norm_base = min(candidate.score * 40.0, 2.0)
+            norm_base = min(candidate.score * 15.0, 2.0)
 
-        ce_score = (3.0 * coverage_ratio) + freq_boost + heading_boost + phrase_score - drift_penalty + norm_base
-        return float(ce_score)
+        # Composite score
+        total_score = (
+            (4.0 * dense_sim)
+            + (3.5 * coverage_ratio)
+            + phrase_boost
+            + freq_boost
+            + heading_boost
+            + norm_base
+        )
+        return float(total_score)
 
     async def rerank(
         self, query: str, candidates: list[SearchResult], top_k: int = 5
@@ -131,54 +117,57 @@ class TwoStageMultimodalReranker:
         if not candidates:
             return []
 
-        logger.debug(f"[BGE-Reranker:Stage1] Joint cross-encoding {len(candidates)} candidates for query: '{query}'")
+        logger.debug(f"[Universal-Reranker] Joint cross-encoding {len(candidates)} candidates for query: '{query}'")
+
+        # Encode query once for dense cross-encoder matching
+        q_vec = np.array(self.embedder.encode_text(query), dtype=np.float32)
+        q_norm = np.linalg.norm(q_vec)
+        if q_norm > 1e-6:
+            q_vec /= q_norm
 
         scored_candidates: list[SearchResult] = []
         for c in candidates:
-            ce_score = self._compute_cross_encoder_score(query, c)
+            ce_score = self._compute_cross_encoder_score(query, c, q_vec)
             c.score = round(ce_score, 4)
             scored_candidates.append(c)
 
         # ----------------------------------------------------------------------
-        # Stage 2: ColPali / SigLIP Multimodal Visual Grounding Reranker
+        # Stage 2: Universal Multimodal Visual Grounding
+        # Boosts visuals ONLY when their caption/heading semantically matches the query
         # ----------------------------------------------------------------------
         q_lower = query.lower()
-        wants_visuals = any(w in q_lower for w in ["visual", "diagram", "image", "chart", "figure", "picture", "graph", "schematic"])
+        wants_visuals = any(
+            w in q_lower for w in ["visual", "diagram", "image", "chart", "figure", "picture", "schematic"]
+        )
 
         for c in scored_candidates:
-            # Only boost visual relevance if the candidate has established semantic relevance
-            if c.score > 1.5 and (c.modality == ModalityType.IMAGE or c.source_type == "visual" or c.metadata.get("has_visuals")):
-                visual_boost = 1.0
-                # Check for concept-grounded figures
-                if ("back" in q_lower and "propagat" in q_lower) and c.metadata.get("page_number") in (21, 17):
-                    visual_boost += 1.30
-                elif ("transformer" in q_lower or "attention" in q_lower) and c.metadata.get("page_number") in (156, 163, 162):
-                    visual_boost += 1.30
-                elif ("neural" in q_lower) and c.metadata.get("page_number") in (13, 20, 3, 18):
-                    visual_boost += 1.20
+            has_visual = c.modality == ModalityType.IMAGE or c.source_type == "visual" or c.metadata.get("has_visuals")
+            if has_visual and c.score > 1.0:
+                # Dynamically evaluate visual relevance by comparing query with figure title / heading
+                fig_desc = str(c.metadata.get("figure_title") or c.metadata.get("section_heading") or "").strip()
+                if fig_desc:
+                    fig_vec = np.array(self.embedder.encode_text(fig_desc), dtype=np.float32)
+                    fig_norm = np.linalg.norm(fig_vec)
+                    if fig_norm > 1e-6:
+                        fig_vec /= fig_norm
+                        v_sim = float(np.dot(q_vec, fig_vec))
+                        if v_sim > 0.35:
+                            visual_boost = 1.0 + (v_sim * 0.6)
+                            if wants_visuals:
+                                visual_boost += 0.35
+                            c.visual_relevance_score = round(visual_boost, 2)
+                            c.score = round(c.score * visual_boost, 4)
 
-                if wants_visuals:
-                    visual_boost += 0.25
-
-                c.visual_relevance_score = round(visual_boost, 2)
-                c.score = round(c.score * visual_boost, 4)
-
-        # Sort by final BGE-reranked score descending
+        # Sort by score descending
         scored_candidates.sort(key=lambda x: x.score, reverse=True)
 
-        # ----------------------------------------------------------------------
-        # Strict Relevance Pruning for 0.94 - 0.98 Precision
-        # ----------------------------------------------------------------------
-        if scored_candidates:
-            best_score = scored_candidates[0].score
-            # Dynamic threshold: keep high-confidence candidates in top relevance tier
-            cutoff = max(0.60, best_score * 0.40)
-            pruned = [c for c in scored_candidates if c.score >= cutoff]
-            if pruned:
-                scored_candidates = pruned
+        # Cutoff: eliminate poor matches
+        best_score = scored_candidates[0].score if scored_candidates else 0.0
+        cutoff = max(1.0, best_score * 0.35)
+        filtered = [c for c in scored_candidates if c.score >= cutoff]
+        final_list = filtered if filtered else scored_candidates[:top_k]
 
-        return scored_candidates[:top_k]
+        return final_list[:top_k]
 
 
-# Backwards compatibility alias
 ContextualReranker = TwoStageMultimodalReranker

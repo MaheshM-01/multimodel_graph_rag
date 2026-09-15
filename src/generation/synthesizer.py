@@ -68,6 +68,9 @@ class MultimodalSynthesizer:
                     media_url=item.image_url,
                     snippet=item.content[:240].strip(),
                     modality=str(item.modality),
+                    section_heading=item.metadata.get("section_heading") or item.metadata.get("heading"),
+                    figure_title=item.metadata.get("figure_title"),
+                    preview_tag=item.metadata.get("preview_tag"),
                 )
             )
 

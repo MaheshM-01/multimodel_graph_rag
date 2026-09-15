@@ -17,6 +17,9 @@ class MultimodalCitation(BaseModel):
     bounding_box: BoundingBox | None = None
     snippet: str
     modality: str
+    section_heading: str | None = None
+    figure_title: str | None = None
+    preview_tag: str | None = None
 
 
 class GroundingMetadata(BaseModel):
