@@ -33,14 +33,19 @@ class DocumentSearchEngine:
         self._doc_mtimes: dict[str, float] = {}
 
     def _extract_structural_chunks_from_pdf(self, file_path: Path) -> list[dict[str, Any]]:
-        """Extract layout-aware structural child chunks with section headings and visual attachments."""
+        """Extract layout-aware structural child chunks with font-size section headings, boilerplate suppression, and visual attachments."""
         chunks: list[dict[str, Any]] = []
         filename = file_path.name
+        boilerplate_pattern = re.compile(
+            r'(?:https?://\S+|t\.me/\S+|follow\s+[^\n]+on\s+linkedin[^\n]*|from\s+a\s+guide\s+to[^\n]+|download\s+machine\s+learning[^\n]*|deeplearning\.ai\s+courses\s+notes[^\n]*|machine\s+learning\s+full\s+course[^\n]*|coursera\s+deep\s+learning\s+specialization[^\n]*)',
+            re.IGNORECASE,
+        )
 
         try:
             import fitz
             pdf_doc = fitz.open(str(file_path))
             total_pages = len(pdf_doc)
+            running_heading = "Introduction"
 
             for page_idx in range(total_pages):
                 page = pdf_doc[page_idx]
@@ -52,36 +57,76 @@ class DocumentSearchEngine:
                 if not page_text and not has_images:
                     continue
 
-                # Normalize whitespace
-                clean_page_text = re.sub(r"[ \t]+", " ", page_text)
-                clean_page_text = re.sub(r"\n{3,}", "\n\n", clean_page_text)
-                clean_page_text = re.sub(r"Follow Arpit Singh on LinkedIn[^\n]*\n?", "", clean_page_text, flags=re.IGNORECASE)
-                clean_page_text = re.sub(r"This PDF contains Mahmoud Badry[^\n]*\n?", "", clean_page_text, flags=re.IGNORECASE).strip()
+                # Detect if this page is a Table of Contents / Course Summary
+                lower_raw = page_text.lower()
+                is_toc = ("table of contents" in lower_raw) or ("course summary" in lower_raw)
 
-                # Extract text blocks to identify true structural headings
-                blocks = page.get_text("blocks")
-                current_heading = f"Page {page_num} Section"
+                # Clean boilerplate and noise from page text
+                clean_page_text = boilerplate_pattern.sub("", page_text)
+                clean_page_text = re.sub(r"[ \t]+", " ", clean_page_text)
+                clean_page_text = re.sub(r"\n{3,}", "\n\n", clean_page_text).strip()
 
-                # Find candidate heading: usually the first non-empty, short, title-like block
-                for b in blocks:
-                    block_txt = b[4].strip()
-                    if block_txt and len(block_txt) < 90 and not block_txt.isdigit():
-                        lines = [line.strip() for line in block_txt.split("\n") if line.strip()]
-                        if lines:
-                            cand = lines[0].strip("#: \t")
-                            if len(cand) > 3 and not any(w in cand.lower() for w in ["page", "chapter", "copyright"]):
-                                current_heading = cand
+                # Determine true structural heading for this page using font size
+                current_heading = None
+                if is_toc:
+                    current_heading = "Table of Contents"
+                else:
+                    # 1. Search for title spans with font size >= 12.8 (author uses 15.0 and 18.0 for titles)
+                    blocks = page.get_text("dict").get("blocks", [])
+                    size_cands = []
+                    for b in blocks:
+                        if "lines" not in b:
+                            continue
+                        for l in b["lines"]:
+                            line_text = "".join(s.get("text", "") for s in l.get("spans", [])).strip()
+                            if not line_text or boilerplate_pattern.search(line_text):
+                                continue
+                            max_size = max((s.get("size", 0) for s in l.get("spans", [])), default=0)
+                            if (
+                                max_size >= 12.8
+                                and len(line_text) >= 3
+                                and not line_text.lower().startswith(("course", "download", "page ", "chapter ", "http", "t.me"))
+                            ):
+                                size_cands.append((max_size, line_text))
+
+                    if size_cands:
+                        size_cands.sort(key=lambda x: x[0], reverse=True)
+                        current_heading = size_cands[0][1]
+                    else:
+                        # 2. Inspect clean lines for short standalone title lines
+                        TRANSITION_WORDS = {
+                            "then", "also", "here", "now", "first", "second", "third", "next", "finally",
+                            "note", "so", "step", "alpha", "beta", "gamma", "equations", "formula",
+                            "hint", "example", "suppose", "assume", "let's", "where", "while", "blue"
+                        }
+                        clean_lines = [l.strip() for l in clean_page_text.split("\n") if l.strip()]
+                        for cand in clean_lines[:5]:
+                            cand_clean = cand.strip("#: \t")
+                            cand_lower = cand_clean.lower()
+                            if (
+                                4 <= len(cand_clean) <= 65
+                                and not cand_clean.endswith((".", ";"))
+                                and cand_lower not in TRANSITION_WORDS
+                                and not any(cand_lower.startswith(tw + " ") for tw in ["we will", "let's", "in this", "suppose", "assume", "give a", "from a"])
+                                and not boilerplate_pattern.search(cand_clean)
+                            ):
+                                current_heading = cand_clean
                                 break
+
+                    if not current_heading:
+                        current_heading = running_heading
+
+                    if current_heading and not current_heading.startswith("Page "):
+                        running_heading = current_heading
 
                 # Split page into granular coherent paragraphs/sentences (~350-500 chars)
                 paragraphs = re.split(r"\n\s*\n+", clean_page_text)
                 raw_segments = []
                 for p in paragraphs:
                     p = p.strip()
-                    if not p:
+                    if not p or len(p) < 15:
                         continue
                     if len(p) > 600:
-                        # Sub-split long paragraphs at sentence boundaries
                         sentences = re.split(r"(?<=[.!?])\s+", p)
                         curr_sent_chunk = []
                         curr_len = 0
@@ -97,7 +142,7 @@ class DocumentSearchEngine:
                     else:
                         raw_segments.append(p)
 
-                # Fallback to whole page text if no paragraphs could be extracted
+                # Fallback to whole clean page text if no paragraphs could be extracted
                 if not raw_segments and clean_page_text:
                     raw_segments = [clean_page_text]
 
@@ -122,6 +167,7 @@ class DocumentSearchEngine:
                         "image_count": len(imgs),
                         "preview_url": preview_url,
                         "figure_title": figure_title,
+                        "is_toc": is_toc,
                     })
 
             pdf_doc.close()
@@ -283,6 +329,14 @@ class DocumentSearchEngine:
 
         return all_chunks, combined_matrix
 
+    def _ensure_documents_indexed(self) -> list[dict[str, Any]]:
+        """Auto-index and retrieve all document chunks for legacy/hybrid retrievers."""
+        chunks, _ = self._get_corpus_chunks_and_matrix()
+        for c in chunks:
+            if "text" not in c:
+                c["text"] = c.get("content", "")
+        return chunks
+
     def _compute_idf(self, chunks: list[dict[str, Any]]) -> tuple[dict[str, float], float]:
         """Compute Inverse Document Frequency across all indexed chunks."""
         total_chunks = len(chunks)
@@ -394,9 +448,9 @@ class DocumentSearchEngine:
                 if phr in heading_lower:
                     s_score += 6.0
 
-            # C. Penalty for table-of-contents / preface pages
-            if chunk["page_number"] <= 2 and any(toc in text_lower for toc in ["table of contents", "notes on deeplearning.ai"]):
-                s_score -= 20.0
+            # C. Penalty for table-of-contents / syllabus / index pages
+            if chunk.get("is_toc") and not any(toc in clean_query for toc in ["table of contents", "syllabus", "outline", "summary", "index"]):
+                s_score -= 35.0
 
             sparse_scores[idx] = max(0.0, s_score)
 
@@ -418,6 +472,10 @@ class DocumentSearchEngine:
         for idx, chunk in enumerate(all_chunks):
             d_score = float(dense_scores[idx])
             s_score = float(sparse_scores[idx])
+
+            # Deprecate TOC semantic similarity if query is conceptual
+            if chunk.get("is_toc") and not any(toc in clean_query for toc in ["table of contents", "syllabus", "outline", "summary", "index"]):
+                d_score -= 0.35
 
             # RRF Fusion:
             # High dense score (semantic) + BM25 exact match
@@ -459,12 +517,15 @@ class DocumentSearchEngine:
             is_visual = c["has_images"] and (wants_visuals or c.get("image_count", 0) > 0)
             modality = ModalityType.IMAGE if is_visual else ModalityType.TEXT
 
+            # Pinpoint chunk content enriched with heading for cross-encoder & synthesis
+            pinpoint_content = f"[{c['heading']}] {c['content']}" if c.get("heading") and not c["content"].startswith("[") else c["content"]
+
             results.append(
                 SearchResult(
                     id=c["chunk_id"],
                     modality=modality,
                     score=round(float(item["fused_score"]), 4),
-                    content=c["parent_text"],  # Rich parent context for synthesis
+                    content=pinpoint_content,
                     image_url=c["preview_url"] if is_visual else None,
                     source_type="document_page",
                     data_points={
@@ -472,6 +533,7 @@ class DocumentSearchEngine:
                         "heading": c["heading"],
                         "dense_score": round(item["dense_score"], 4),
                         "sparse_score": round(item["sparse_score"], 4),
+                        "parent_context": c["parent_text"],
                     },
                     metadata={
                         "document_id": doc_id,
@@ -482,6 +544,8 @@ class DocumentSearchEngine:
                         "preview_tag": c["heading"],
                         "has_visuals": c["has_images"],
                         "preview_url": c["preview_url"],
+                        "parent_text": c["parent_text"],
+                        "is_toc": c.get("is_toc", False),
                     },
                 )
             )

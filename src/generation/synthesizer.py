@@ -51,7 +51,12 @@ class MultimodalSynthesizer:
 
             # 3. Text Chunks & Document Page Excerpts
             if item.content and item.source_type not in ("graph", "community", "cypher"):
-                text_excerpts.append(f"{source_tag} {item.content}")
+                heading_str = f" [Section: {item.metadata.get('section_heading')}]" if item.metadata.get("section_heading") else ""
+                excerpt = f"{source_tag}{heading_str} {item.content}"
+                parent_ctx = item.metadata.get("parent_text") or (item.data_points.get("parent_context") if item.data_points else None)
+                if parent_ctx and len(item.content) < 500 and parent_ctx != item.content:
+                    excerpt += f"\n[Extended Context]: {parent_ctx[:650]}"
+                text_excerpts.append(excerpt)
 
             # Register citation with normalized document_id
             doc_id = (

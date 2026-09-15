@@ -27,6 +27,22 @@ class TwoStageMultimodalReranker:
         self.embedder = TextEmbeddingEngine()
         logger.info(f"Initialized Universal Cross-Encoder Reranker with neural embeddings.")
 
+    @staticmethod
+    def _normalize_stem(t: str) -> str:
+        """Lightweight algorithmic stemmer for English plurals, gerunds, and past tense."""
+        t = t.lower().strip()
+        if t.endswith("ies") and len(t) > 4:
+            return t[:-3] + "y"
+        if t.endswith("es") and len(t) > 4:
+            return t[:-2]
+        if t.endswith("s") and not t.endswith("ss") and len(t) > 3:
+            return t[:-1]
+        if t.endswith("ing") and len(t) > 5:
+            return t[:-3]
+        if t.endswith("ed") and len(t) > 4:
+            return t[:-2]
+        return t
+
     def _longest_common_phrase_length(self, q_words: list[str], doc_text_lower: str) -> int:
         """Find the length of the longest contiguous sequence of query words present in document."""
         if not q_words:
@@ -56,20 +72,31 @@ class TwoStageMultimodalReranker:
         if not salient_tokens:
             salient_tokens = [t for t in q_tokens if len(t) > 1]
 
+        # Strict penalty for Table of Contents when asking conceptual queries
+        is_toc = bool(candidate.metadata.get("is_toc"))
+        if is_toc and not any(w in q_clean for w in ["table of contents", "syllabus", "outline", "summary", "index"]):
+            return -25.0
+
         content_tokens_list = re.findall(r"\b\w+\b", content)
         content_tokens = set(content_tokens_list)
 
-        # 1. Salient token coverage ratio (fraction of core query words present)
-        covered_salient = sum(1 for t in salient_tokens if t in content_tokens)
-        coverage_ratio = covered_salient / max(len(salient_tokens), 1)
+        # 1. Salient token coverage ratio with morphological stem matching
+        q_stems = [self._normalize_stem(t) for t in salient_tokens]
+        content_stems = set(self._normalize_stem(t) for t in content_tokens_list)
+
+        covered_salient = sum(1 for s in q_stems if s in content_stems)
+        coverage_ratio = covered_salient / max(len(q_stems), 1)
 
         # Strict elimination for candidates with zero query keyword match
         if coverage_ratio == 0:
             return -5.0
 
+        # Completeness bonus: reward chunks covering ALL conceptual elements in the query
+        completeness_bonus = 4.0 if coverage_ratio >= 0.99 else (1.5 if coverage_ratio >= 0.74 else 0.0)
+
         # 2. Dense Semantic Cosine Similarity
-        # Encode candidate content snippet (first 350 characters for focused matching)
-        snippet_text = candidate.content[:350]
+        # Encode candidate content snippet (first 450 characters for focused matching)
+        snippet_text = candidate.content[:450]
         c_vec = np.array(self.embedder.encode_text(snippet_text), dtype=np.float32)
         c_norm = np.linalg.norm(c_vec)
         dense_sim = 0.0
@@ -79,20 +106,20 @@ class TwoStageMultimodalReranker:
 
         # 3. Dynamic Longest Continuous Phrase Match (LCP)
         lcp_len = self._longest_common_phrase_length(salient_tokens, content)
-        phrase_boost = float(lcp_len) * 2.2
+        phrase_boost = float(lcp_len) * 2.5
 
         # 4. Term Frequency / Density Boost
-        matches = sum(content_tokens_list.count(t) for t in salient_tokens)
+        matches = sum(1 for s in content_tokens_list if self._normalize_stem(s) in q_stems)
         freq_boost = min(math.log(1.0 + matches), 3.5) * 1.6
 
         # 5. Structural Heading Alignment
         heading = str(candidate.metadata.get("heading") or candidate.metadata.get("section_heading") or "").lower()
         heading_boost = 0.0
         if heading:
-            heading_tokens = set(re.findall(r"\b\w+\b", heading))
-            covered_in_heading = sum(1 for t in salient_tokens if t in heading_tokens)
+            heading_stems = set(self._normalize_stem(t) for t in re.findall(r"\b\w+\b", heading))
+            covered_in_heading = sum(1 for s in q_stems if s in heading_stems)
             if covered_in_heading > 0:
-                heading_boost = (covered_in_heading / max(len(salient_tokens), 1)) * 4.0
+                heading_boost = (covered_in_heading / max(len(q_stems), 1)) * 4.5
 
         # 6. Base retrieval score normalization
         if candidate.score > 1.0:
@@ -102,8 +129,9 @@ class TwoStageMultimodalReranker:
 
         # Composite score
         total_score = (
-            (4.0 * dense_sim)
+            (4.5 * dense_sim)
             + (3.5 * coverage_ratio)
+            + completeness_bonus
             + phrase_boost
             + freq_boost
             + heading_boost
@@ -151,19 +179,22 @@ class TwoStageMultimodalReranker:
                     if fig_norm > 1e-6:
                         fig_vec /= fig_norm
                         v_sim = float(np.dot(q_vec, fig_vec))
-                        if v_sim > 0.35:
-                            visual_boost = 1.0 + (v_sim * 0.6)
-                            if wants_visuals:
-                                visual_boost += 0.35
-                            c.visual_relevance_score = round(visual_boost, 2)
-                            c.score = round(c.score * visual_boost, 4)
+                        if wants_visuals:
+                            # User explicitly requested diagram / visual
+                            visual_add = 3.0 + (v_sim * 4.0)
+                            c.visual_relevance_score = round(v_sim, 2)
+                            c.score = round(c.score + visual_add, 4)
+                        elif v_sim > 0.40:
+                            # Additive tie-breaker bonus without inflating over authoritative text
+                            c.visual_relevance_score = round(v_sim, 2)
+                            c.score = round(c.score + (v_sim * 0.8), 4)
 
         # Sort by score descending
         scored_candidates.sort(key=lambda x: x.score, reverse=True)
 
         # Cutoff: eliminate poor matches
         best_score = scored_candidates[0].score if scored_candidates else 0.0
-        cutoff = max(1.0, best_score * 0.35)
+        cutoff = max(1.5, best_score * 0.40)
         filtered = [c for c in scored_candidates if c.score >= cutoff]
         final_list = filtered if filtered else scored_candidates[:top_k]
 
