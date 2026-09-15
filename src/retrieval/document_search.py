@@ -180,6 +180,8 @@ class DocumentSearchEngine:
 
         # Domain query expansions for high-precision retrieval
         expansion_map = {
+            "vectorization": ["vectorized", "matrix multiplication", "simd", "for loops", "np.dot", "broadcasting", "gpu speedup"],
+            "vectorized": ["vectorization", "matrix multiplication", "simd", "for loops", "np.dot", "broadcasting"],
             "transformer": ["attention", "self-attention", "sequence", "encoder", "decoder", "weights"],
             "transformers": ["attention", "self-attention", "sequence", "encoder", "decoder", "weights"],
             "attention": ["attention model", "attention weights", "context", "sequence-to-sequence", "encoder"],
@@ -188,14 +190,20 @@ class DocumentSearchEngine:
             "backprop": ["backpropagation", "gradient", "derivatives", "chain rule", "backward"],
             "backpropagation": ["gradient descent", "derivatives", "chain rule", "backward propagation", "dz", "dw"],
             "propagation": ["backward", "backpropagation", "backward propagation", "gradient", "derivatives", "chain rule", "dz", "dw"],
+            "gradient": ["gradient descent", "learning rate", "cost function", "derivatives", "backpropagation"],
+            "descent": ["gradient descent", "learning rate", "cost function", "optimization"],
             "back": ["backward", "backpropagation", "backward propagation", "gradient"],
             "neural": ["artificial neural network", "deep neural network", "hidden layer", "perceptron", "neurons", "layers"],
             "network": ["neural network", "deep neural network", "hidden layer", "architecture"],
             "networks": ["neural networks", "deep neural networks", "hidden layers", "architecture"],
+            "classification": ["binary classification", "multiclass", "logistic regression", "decision boundary", "labels"],
+            "regression": ["linear regression", "continuous", "mean squared error", "logistic regression"],
             "regularization": ["dropout", "l2", "weight decay", "overfitting"],
             "adam": ["rmsprop", "momentum", "optimizer", "exponentially weighted"],
             "loss": ["cost function", "cross-entropy", "log loss"],
             "activation": ["relu", "sigmoid", "tanh", "softmax", "leaky relu"],
+            "clustering": ["k-means", "kmeans", "centroids", "unsupervised"],
+            "svm": ["support vector machine", "hyperplane", "margin", "kernel trick"],
         }
 
         expanded_terms: list[str] = []
