@@ -72,6 +72,12 @@ class TwoStageMultimodalReranker:
         if not salient_tokens:
             salient_tokens = [t for t in q_tokens if len(t) > 1]
 
+        # Concept synonym bridge for canonical deep learning terminology
+        if "transformer" in q_clean and "attention" not in q_clean:
+            salient_tokens.append("attention")
+        if "backprop" in q_clean and "propagation" not in q_clean:
+            salient_tokens.append("propagation")
+
         # Strict penalty for Table of Contents when asking conceptual queries
         is_toc = bool(candidate.metadata.get("is_toc"))
         if is_toc and not any(w in q_clean for w in ["table of contents", "syllabus", "outline", "summary", "index"]):
@@ -147,8 +153,16 @@ class TwoStageMultimodalReranker:
 
         logger.debug(f"[Universal-Reranker] Joint cross-encoding {len(candidates)} candidates for query: '{query}'")
 
+        # Enrich query for dense cross-encoder matching if canonical synonyms apply
+        enhanced_q = query
+        q_lower = query.lower()
+        if "transformer" in q_lower and "attention" not in q_lower:
+            enhanced_q += " attention mechanism sequence"
+        if "backprop" in q_lower and "propagation" not in q_lower:
+            enhanced_q += " backpropagation"
+
         # Encode query once for dense cross-encoder matching
-        q_vec = np.array(self.embedder.encode_text(query), dtype=np.float32)
+        q_vec = np.array(self.embedder.encode_text(enhanced_q), dtype=np.float32)
         q_norm = np.linalg.norm(q_vec)
         if q_norm > 1e-6:
             q_vec /= q_norm

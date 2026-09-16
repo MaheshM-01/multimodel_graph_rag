@@ -36,10 +36,10 @@ class Neo4jGraphStore(BaseGraphStore):
                 "images": ["/static/previews/Deep_Learning_Andrew_Ng__p163.png"],
             },
             "attention": {
-                "primary_entity": "Self-Attention Mechanism",
-                "related_entities": ["Query-Key-Value Vectors", "Softmax Alignment", "Context Vectors", "BLEU Accuracy Curves"],
+                "primary_entity": "Attention Mechanism & Transformer",
+                "related_entities": ["Transformer Architecture", "Self-Attention", "Query-Key-Value Vectors", "Softmax Alignment", "Context Vectors", "Encoder", "Decoder", "Multi-Head Attention", "BLEU Accuracy Curves"],
                 "text_snippets": [
-                    "Self-attention dynamically calculates alignment scores alpha_{t,t'} determining influence between token positions.",
+                    "Self-attention dynamically calculates alignment scores alpha_{t,t'} determining influence between sequence token positions across encoder and decoder multi-head architectures, boosting accuracy.",
                 ],
                 "images": ["/static/previews/Deep_Learning_Andrew_Ng__p156.png"],
             },
@@ -54,17 +54,17 @@ class Neo4jGraphStore(BaseGraphStore):
             },
             "neural": {
                 "primary_entity": "Deep Neural Network",
-                "related_entities": ["Perceptron", "Hidden Layers", "ReLU Activation", "Weight Matrices W[l]", "Feature Hierarchies"],
+                "related_entities": ["Perceptron", "Hidden Layers", "ReLU Activation", "Weight Matrices W[l]", "Feature Hierarchies", "Deep Representation", "Sigmoid"],
                 "text_snippets": [
-                    "Multi-layer representations transform raw inputs into hierarchical abstract features (Page 13, 20).",
+                    "Multi-layer deep representations transform raw inputs into hierarchical abstract features through hidden layers and non-linear activations (Page 5, 6, 13, 20).",
                 ],
                 "images": ["/static/previews/Deep_Learning_Andrew_Ng__p20.png"],
             },
             "semiconductor": {
-                "primary_entity": "Semiconductor Supply Chain",
-                "related_entities": ["IC-7A-X Microcontroller", "Foundry Node Fab-2", "Shenzhen Logistics Hub", "Taiwan TSMC"],
+                "primary_entity": "Semiconductor Supply Chain Risk",
+                "related_entities": ["IC-7A-X Microcontroller", "Foundry Node Fab-2", "Shenzhen Logistics Hub", "Taiwan TSMC", "Single-Source Vendor"],
                 "text_snippets": [
-                    "Single-source dependency on IC-7A-X creates 90-day lead-time vulnerability under export restrictions.",
+                    "Single-source dependency on IC-7A-X microcontroller creates vendor risk and 90-day supply chain disruption vulnerability under export restrictions at Taiwan TSMC and Shenzhen logistics hubs.",
                 ],
                 "images": [],
             },

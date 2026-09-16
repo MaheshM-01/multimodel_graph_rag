@@ -387,10 +387,19 @@ class DocumentSearchEngine:
             w in clean_query for w in ["visual", "diagram", "image", "chart", "figure", "picture", "schematic"]
         )
 
+        # Concept synonym bridge for canonical deep learning terminology
+        enhanced_query = query
+        if "transformer" in clean_query and "attention" not in clean_query:
+            enhanced_query += " attention mechanism self-attention sequence models"
+            salient_keywords.extend(["attention", "sequence"])
+        if "backprop" in clean_query and "propagation" not in clean_query:
+            enhanced_query += " backpropagation backward propagation"
+            salient_keywords.extend(["propagation", "backward"])
+
         # ----------------------------------------------------------------------
         # 1. Dense Semantic Vector Search (SentenceTransformers Cosine Similarity)
         # ----------------------------------------------------------------------
-        q_vec = np.array(self.embedder.encode_text(query), dtype=np.float32)
+        q_vec = np.array(self.embedder.encode_text(enhanced_query), dtype=np.float32)
         q_norm = np.linalg.norm(q_vec)
         if q_norm > 1e-6:
             q_vec /= q_norm

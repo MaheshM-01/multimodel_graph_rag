@@ -45,25 +45,32 @@ class LLMClient:
                 max_input_chars = 12000
                 trimmed_prompt = prompt if len(prompt) <= max_input_chars else (prompt[:max_input_chars] + "\n\n[Context truncated for model limits]")
 
+                candidate_models = [groq_model] + [m for m in ["openai/gpt-oss-120b", "groq/compound", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"] if m != groq_model]
                 async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
                     messages = []
                     if system_prompt:
                         messages.append({"role": "system", "content": system_prompt})
                     messages.append({"role": "user", "content": trimmed_prompt})
-                    res = await client.post(
-                        f"{self.settings.GROQ_BASE_URL.rstrip('/')}/chat/completions",
-                        headers={"Authorization": f"Bearer {groq_key}"},
-                        json={
-                            "model": groq_model,
-                            "messages": messages,
-                            "temperature": temperature,
-                            "max_tokens": min(max_tokens, 600),
-                        },
-                    )
-                    if res.status_code == 200:
-                        data = res.json()
-                        return data["choices"][0]["message"]["content"]
-                    logger.warning(f"Groq API returned status {res.status_code} ({res.text[:120]}), falling back to NVIDIA NIM.")
+
+                    for cand_m in candidate_models:
+                        res = await client.post(
+                            f"{self.settings.GROQ_BASE_URL.rstrip('/')}/chat/completions",
+                            headers={"Authorization": f"Bearer {groq_key}"},
+                            json={
+                                "model": cand_m,
+                                "messages": messages,
+                                "temperature": temperature,
+                                "max_tokens": min(max_tokens, 600),
+                            },
+                        )
+                        if res.status_code == 200:
+                            data = res.json()
+                            return data["choices"][0]["message"]["content"]
+                        if res.status_code == 429:
+                            logger.warning(f"Groq model {cand_m} rate limited (429), attempting next candidate model...")
+                            continue
+                        logger.warning(f"Groq model {cand_m} returned status {res.status_code} ({res.text[:100]}), trying next...")
+                logger.warning("All Groq candidate models exhausted, falling back to NVIDIA NIM.")
             except Exception as exc:
                 logger.warning(f"Groq API request failed ({exc}), falling back to NVIDIA NIM.")
 

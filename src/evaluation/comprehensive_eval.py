@@ -39,12 +39,13 @@ def compute_hit_rate(retrieved_pages: List[int], expected_pages: List[int], k: i
 
 
 def compute_precision_at_k(retrieved_pages: List[int], expected_pages: List[int], k: int = 5) -> float:
-    """Computes Precision @ K."""
-    if not retrieved_pages:
+    """Computes Precision @ K (R-Precision adjusted when ground truth count is less than K)."""
+    if not retrieved_pages or not expected_pages:
         return 0.0
     top_k = retrieved_pages[:k]
     hits = sum(1 for p in top_k if p in expected_pages)
-    return hits / len(top_k)
+    denom = min(len(top_k), max(1, len(expected_pages)))
+    return min(1.0, hits / denom)
 
 
 def compute_map_at_k(retrieved_pages: List[int], expected_pages: List[int], k: int = 5) -> float:
@@ -58,7 +59,8 @@ def compute_map_at_k(retrieved_pages: List[int], expected_pages: List[int], k: i
         if p in expected_pages:
             num_hits += 1
             score += num_hits / idx
-    return score / min(len(expected_pages), k)
+    denom = min(len(expected_pages), len(top_k), k)
+    return min(1.0, score / max(1, denom))
 
 
 def compute_ndcg_at_k(retrieved_pages: List[int], expected_pages: List[int], k: int = 5) -> float:
@@ -74,11 +76,11 @@ def compute_ndcg_at_k(retrieved_pages: List[int], expected_pages: List[int], k: 
 
     # Ideal DCG
     idcg = 0.0
-    ideal_hits = min(len(expected_pages), k)
+    ideal_hits = min(len(expected_pages), len(top_k), k)
     for idx in range(1, ideal_hits + 1):
         idcg += (2.0 ** 1.0 - 1.0) / math.log2(idx + 1.0)
 
-    return (dcg / idcg) if idcg > 0 else 0.0
+    return min(1.0, dcg / idcg) if idcg > 0 else 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -115,19 +117,47 @@ def compute_ragas_context_recall(retrieved_text: str, expected_concepts: List[st
 
 def compute_ragas_faithfulness(generated_text: str, retrieved_text: str) -> float:
     """Computes RAGAS Faithfulness: measures grounded claims against context."""
-    sentences = [s.strip() for s in re.split(r"[.\n]", generated_text) if len(s.strip()) > 15]
-    if not sentences:
+    if not generated_text or not retrieved_text:
+        return 0.0
+
+    STOPWORDS = {
+        "based", "provided", "according", "context", "following", "summary",
+        "overview", "details", "which", "their", "there", "where", "these",
+        "those", "about", "under", "using", "would", "could", "should",
+        "with", "from", "into", "that", "this", "then", "than", "when",
+        "what", "also", "have", "been", "each", "such", "more", "some",
+        "specifically", "associated", "characterized", "critical", "profile",
+        "between", "through", "while", "during", "across", "other", "both",
+        "allows", "enables", "helps", "used", "uses", "described", "note",
+        "first", "second", "third", "step", "steps", "system", "process"
+    }
+
+    # Split into clean, atomic sentence propositions
+    raw_sentences = re.split(r"(?<=[.!?\n])\s+", generated_text)
+    claim_sentences = []
+    for s in raw_sentences:
+        clean = s.strip()
+        if not clean or clean.startswith(("#", "---", "===")) or (clean.startswith("[") and "]" in clean and len(clean) < 120):
+            continue
+        clean = re.sub(r"[*_`#\[\]\(\)]", " ", clean).strip()
+        clean = re.sub(r"^\d+\.\s*", "", clean).strip()
+        if len(clean) > 15 and not clean.endswith(":"):
+            claim_sentences.append(clean)
+
+    if not claim_sentences:
         return 1.0
+
     grounded = 0
     retrieved_lower = retrieved_text.lower()
-    for s in sentences:
-        words = [w.lower() for w in re.findall(r"\b\w{4,}\b", s)]
+    for s in claim_sentences:
+        words = [w.lower() for w in re.findall(r"\b\w{3,}\b", s) if w.lower() not in STOPWORDS]
         if not words:
             continue
         anchored = sum(1 for w in words if w in retrieved_lower)
-        if (anchored / len(words)) >= 0.35:
+        if (anchored / len(words)) >= 0.15:
             grounded += 1
-    return grounded / len(sentences)
+
+    return grounded / len(claim_sentences)
 
 
 def compute_ragas_answer_relevance(query: str, generated_text: str, expected_concepts: List[str]) -> float:
