@@ -66,109 +66,121 @@ class DocumentSearchEngine:
                 clean_page_text = re.sub(r"[ \t]+", " ", clean_page_text)
                 clean_page_text = re.sub(r"\n{3,}", "\n\n", clean_page_text).strip()
 
-                # Determine true structural heading for this page using font size
-                current_heading = None
+                # Parse layout-aware blocks to dynamically track section headings in reading order
+                blocks = page.get_text("dict").get("blocks", [])
+                page_segments: list[tuple[str, str]] = []  # (heading, text)
+
                 if is_toc:
-                    current_heading = "Table of Contents"
+                    running_heading = "Table of Contents"
+                    if clean_page_text:
+                        page_segments.append(("Table of Contents", clean_page_text))
                 else:
-                    # 1. Search for title spans with font size >= 12.8 (author uses 15.0 and 18.0 for titles)
-                    blocks = page.get_text("dict").get("blocks", [])
-                    size_cands = []
+                    curr_heading = running_heading
+                    curr_buffer: list[str] = []
+
                     for b in blocks:
                         if "lines" not in b:
                             continue
+                        block_lines: list[str] = []
+                        max_font_size = 0.0
+
                         for l in b["lines"]:
-                            line_text = "".join(s.get("text", "") for s in l.get("spans", [])).strip()
-                            if not line_text or boilerplate_pattern.search(line_text):
+                            line_str = "".join(s.get("text", "") for s in l.get("spans", [])).strip()
+                            if not line_str or boilerplate_pattern.search(line_str):
                                 continue
-                            max_size = max((s.get("size", 0) for s in l.get("spans", [])), default=0)
-                            if (
-                                max_size >= 12.8
-                                and len(line_text) >= 3
-                                and not line_text.lower().startswith(("course", "download", "page ", "chapter ", "http", "t.me"))
-                            ):
-                                size_cands.append((max_size, line_text))
+                            line_max = max((s.get("size", 0) for s in l.get("spans", [])), default=0)
+                            if line_max > max_font_size:
+                                max_font_size = line_max
+                            block_lines.append(line_str)
 
-                    if size_cands:
-                        size_cands.sort(key=lambda x: x[0], reverse=True)
-                        current_heading = size_cands[0][1]
-                    else:
-                        # 2. Inspect clean lines for short standalone title lines
-                        TRANSITION_WORDS = {
-                            "then", "also", "here", "now", "first", "second", "third", "next", "finally",
-                            "note", "so", "step", "alpha", "beta", "gamma", "equations", "formula",
-                            "hint", "example", "suppose", "assume", "let's", "where", "while", "blue"
-                        }
-                        clean_lines = [l.strip() for l in clean_page_text.split("\n") if l.strip()]
-                        for cand in clean_lines[:5]:
-                            cand_clean = cand.strip("#: \t")
-                            cand_lower = cand_clean.lower()
-                            if (
-                                4 <= len(cand_clean) <= 65
-                                and not cand_clean.endswith((".", ";"))
-                                and cand_lower not in TRANSITION_WORDS
-                                and not any(cand_lower.startswith(tw + " ") for tw in ["we will", "let's", "in this", "suppose", "assume", "give a", "from a"])
-                                and not boilerplate_pattern.search(cand_clean)
-                            ):
-                                current_heading = cand_clean
-                                break
+                        if not block_lines:
+                            continue
 
-                    if not current_heading:
-                        current_heading = running_heading
+                        block_full = " ".join(block_lines).strip()
+                        block_clean = boilerplate_pattern.sub("", block_full).strip()
+                        if not block_clean:
+                            continue
 
-                    if current_heading and not current_heading.startswith("Page "):
-                        running_heading = current_heading
+                        # Check if this block is a section heading
+                        is_heading_candidate = (
+                            max_font_size >= 12.8
+                            and 3 <= len(block_clean) <= 75
+                            and not block_clean.endswith((".", ";"))
+                            and not block_clean.lower().startswith(("course", "download", "page ", "chapter ", "http", "t.me", "from a guide"))
+                        )
 
-                # Split page into granular coherent paragraphs/sentences (~350-500 chars)
-                paragraphs = re.split(r"\n\s*\n+", clean_page_text)
-                raw_segments = []
-                for p in paragraphs:
-                    p = p.strip()
-                    if not p or len(p) < 15:
-                        continue
-                    if len(p) > 600:
-                        sentences = re.split(r"(?<=[.!?])\s+", p)
-                        curr_sent_chunk = []
-                        curr_len = 0
-                        for s in sentences:
-                            curr_sent_chunk.append(s)
-                            curr_len += len(s)
-                            if curr_len >= 380:
-                                raw_segments.append(" ".join(curr_sent_chunk))
-                                curr_sent_chunk = []
-                                curr_len = 0
-                        if curr_sent_chunk:
-                            raw_segments.append(" ".join(curr_sent_chunk))
-                    else:
-                        raw_segments.append(p)
+                        if is_heading_candidate:
+                            if curr_buffer:
+                                body = "\n\n".join(curr_buffer).strip()
+                                if len(body) >= 20:
+                                    page_segments.append((curr_heading, body))
+                                curr_buffer = []
+                            curr_heading = block_clean
+                            if not curr_heading.startswith("Page "):
+                                running_heading = curr_heading
+                        else:
+                            curr_buffer.append(block_clean)
 
-                # Fallback to whole clean page text if no paragraphs could be extracted
-                if not raw_segments and clean_page_text:
-                    raw_segments = [clean_page_text]
+                    if curr_buffer:
+                        body = "\n\n".join(curr_buffer).strip()
+                        if len(body) >= 20:
+                            page_segments.append((curr_heading, body))
+
+                # Fallback to whole clean page text if no blocks could be extracted
+                if not page_segments and clean_page_text:
+                    page_segments = [(running_heading, clean_page_text)]
 
                 preview_url = f"/api/v1/documents/{filename}/pages/{page_num}/preview"
-                figure_title = f"Figure: {current_heading} (Page {page_num})" if has_images else None
 
-                for seg_idx, segment_content in enumerate(raw_segments):
-                    # Contextual enrichment (Anthropic pattern): prepends document & section context
-                    contextual_prefix = f"[{filename} | Page {page_num} | {current_heading}] "
-                    enriched_content = f"{contextual_prefix}{segment_content}"
+                seg_counter = 0
+                for (seg_heading, seg_text) in page_segments:
+                    # Break long segments (> 550 chars) into coherent sub-paragraphs
+                    paragraphs = re.split(r"\n\s*\n+", seg_text)
+                    sub_chunks: list[str] = []
+                    for p in paragraphs:
+                        p = p.strip()
+                        if not p or len(p) < 15:
+                            continue
+                        if len(p) > 600:
+                            sentences = re.split(r"(?<=[.!?])\s+", p)
+                            curr_sent_chunk = []
+                            curr_len = 0
+                            for s in sentences:
+                                curr_sent_chunk.append(s)
+                                curr_len += len(s)
+                                if curr_len >= 380:
+                                    sub_chunks.append(" ".join(curr_sent_chunk))
+                                    curr_sent_chunk = []
+                                    curr_len = 0
+                            if curr_sent_chunk:
+                                sub_chunks.append(" ".join(curr_sent_chunk))
+                        else:
+                            sub_chunks.append(p)
 
-                    chunks.append({
-                        "chunk_id": f"{filename}_p{page_num}_c{seg_idx}",
-                        "document_id": filename,
-                        "page_number": page_num,
-                        "chunk_index": seg_idx,
-                        "heading": current_heading,
-                        "content": segment_content,
-                        "enriched_content": enriched_content,
-                        "parent_text": clean_page_text[:1400],
-                        "has_images": has_images,
-                        "image_count": len(imgs),
-                        "preview_url": preview_url,
-                        "figure_title": figure_title,
-                        "is_toc": is_toc,
-                    })
+                    if not sub_chunks and seg_text:
+                        sub_chunks = [seg_text]
+
+                    for sub in sub_chunks:
+                        contextual_prefix = f"[{filename} | Page {page_num} | {seg_heading}] "
+                        enriched_content = f"{contextual_prefix}{sub}"
+                        figure_title = f"Figure: {seg_heading} (Page {page_num})" if has_images else None
+
+                        chunks.append({
+                            "chunk_id": f"{filename}_p{page_num}_c{seg_counter}",
+                            "document_id": filename,
+                            "page_number": page_num,
+                            "chunk_index": seg_counter,
+                            "heading": seg_heading,
+                            "content": sub,
+                            "enriched_content": enriched_content,
+                            "parent_text": clean_page_text[:1400],
+                            "has_images": has_images,
+                            "image_count": len(imgs),
+                            "preview_url": preview_url,
+                            "figure_title": figure_title,
+                            "is_toc": is_toc,
+                        })
+                        seg_counter += 1
 
             pdf_doc.close()
             logger.info(f"Loaded {len(chunks)} structural chunks from PDF: {filename}")

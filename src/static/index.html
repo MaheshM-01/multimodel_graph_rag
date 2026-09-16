@@ -154,97 +154,28 @@
                             Welcome to the <strong>Multimodal Graph RAG Engine</strong>. Execute high-order Cypher traversals across corporate relationships, query un-redacted financial balance sheets, and isolate physical failure points inside engineering schematics with sub-pixel spatial bounding box verification.
                         </p>
 
-                        <div class="prompt-grid-header">RECOMMENDED HIGH-DIMENSIONAL PROMPTS</div>
+                        <div class="prompt-grid-header">RECOMMENDED MULTIMODAL PROMPTS</div>
                         <div class="prompt-grid">
-                            <button class="prompt-card" onclick="executePrompt('Traverse CEO, Board & Subsidiary Ownership Tree for AlphaCorp')">
-                                <span class="p-icon">🕸️</span>
-                                <span class="p-text">Traverse CEO, Board & Subsidiary Ownership Tree</span>
+                            <button class="prompt-card" onclick="executePrompt('Explain Neural Network Gradient Descent and Backpropagation equations')">
+                                <span class="p-icon">📉</span>
+                                <span class="p-text">Neural Network Gradient Descent &amp; Backpropagation</span>
                                 <span class="p-arrow">➔</span>
                             </button>
-                            <button class="prompt-card" onclick="executePrompt('Cross-reference PCB Schematic 7A-X with 10-K Risk Filing for single-sourcing')">
-                                <span class="p-icon">📄</span>
-                                <span class="p-text">Cross-reference PCB Schematic 7A-X with 10-K Risk Filing</span>
+                            <button class="prompt-card" onclick="executePrompt('What is Binary Classification and how does Logistic Regression solve it?')">
+                                <span class="p-icon">🎯</span>
+                                <span class="p-text">Binary Classification &amp; Logistic Regression</span>
                                 <span class="p-arrow">➔</span>
                             </button>
-                            <button class="prompt-card" onclick="executePrompt('Show Q3 Revenue vs Fab Bottleneck Analysis and component failure trends')">
-                                <span class="p-icon">📊</span>
-                                <span class="p-text">Show Q3 Revenue vs Fab Bottleneck Analysis</span>
+                            <button class="prompt-card" onclick="executePrompt('How does Sentiment Classification work using Sequence RNN models?')">
+                                <span class="p-icon">💬</span>
+                                <span class="p-text">Sentiment Classification with Sequence RNNs</span>
                                 <span class="p-arrow">➔</span>
                             </button>
-                            <button class="prompt-card" onclick="executePrompt('Global Community Summary (Leiden Cluster k=3) for thematic risk factors')">
-                                <span class="p-icon">🌐</span>
-                                <span class="p-text">Global Community Summary (Leiden Cluster k=3)</span>
+                            <button class="prompt-card" onclick="executePrompt('Explain the Attention Mechanism and Transformer Architecture in Deep Learning')">
+                                <span class="p-icon">⚡</span>
+                                <span class="p-text">Attention Mechanism &amp; Transformer Architecture</span>
                                 <span class="p-arrow">➔</span>
                             </button>
-                        </div>
-                    </div>
-
-                    <!-- User Question Thread -->
-                    <div class="chat-thread-group">
-                        <div class="user-thread-row">
-                            <div class="user-meta-info">
-                                <span class="timestamp">14:02:18 EST</span>
-                                <span class="author">Dr. Elena Rostova</span>
-                            </div>
-                            <div class="user-avatar-sm">ER</div>
-                        </div>
-                        <div class="user-speech-bubble">
-                            <p>Correlate the component overheating warning in <code class="file-code">PCB-Schematic-v2.png</code> with the supply chain vulnerability reported in <code class="file-code">SEC-10K-Q3.pdf</code>. Are we single-sourced?</p>
-                            <div class="attached-evidence-chips">
-                                <span class="evidence-chip"><span class="icon">📄</span> SEC-10K-Q3.pdf <span class="page-tag">Page 42</span></span>
-                                <span class="evidence-chip"><span class="icon">🖼️</span> PCB-Schematic-v2.png <span class="coord-tag">[LOC: 304, 142]</span></span>
-                            </div>
-                        </div>
-
-                        <!-- Assistant Grounded Synthesis Response -->
-                        <div class="synthesis-thread-response">
-                            <div class="synthesis-header">
-                                <div class="synthesis-title-row">
-                                    <div class="agent-avatar-mini">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-                                    </div>
-                                    <span class="synthesis-title">Synapse Engine - Grounded Synthesis</span>
-                                    <span class="badge-fused-hops">Fused 3 Hops</span>
-                                </div>
-                            </div>
-
-                            <!-- Entity Resolution Tags -->
-                            <div class="entity-resolution-tags">
-                                <span class="tag-entity">Organization: <strong>AlphaCorp</strong></span>
-                                <span class="tag-entity">Fab: <strong>Shenzhen-04</strong></span>
-                                <span class="tag-entity risk">Risk: <strong>Single-Source Component 7A-X</strong></span>
-                                <span class="tag-entity confidence">Confidence: <strong>99.4%</strong></span>
-                            </div>
-
-                            <div class="synthesis-text">
-                                <p><strong>Synthesis Confirmation:</strong> Yes, AlphaCorp is critically single-sourced on this specific power-stage semiconductor. A cross-modal alignment between the hardware layout and the corporate disclosure indicates a direct operational vulnerability:</p>
-                            </div>
-
-                            <!-- Grounding Box 1: Spatial Vision Grounding -->
-                            <div class="grounding-callout-card spatial">
-                                <div class="callout-header">
-                                    <span class="callout-title">SPATIAL VISION GROUNDING</span>
-                                    <span class="callout-metric">IoU: 0.93</span>
-                                </div>
-                                <p>In <strong>PCB-Schematic-v2.png</strong>, component <strong>IC-7A-X</strong> (coordinates <code class="coord-val">x:304, y:142</code>) operates in the high-heat dissipation loop. The thermal simulation node points to an unregulated spike under maximum duty cycle.</p>
-                            </div>
-
-                            <!-- Grounding Box 2: Graph Topology Corroboration -->
-                            <div class="grounding-callout-card graph">
-                                <div class="callout-header">
-                                    <span class="callout-title">GRAPH TOPOLOGY & 10-K CORROBORATION</span>
-                                    <span class="callout-metric">SEC Item 1A (p.42)</span>
-                                </div>
-                                <p>Traversing <strong>Neo4j</strong> via <code class="cypher-inline">[:MANUFACTURED_AT] ➔ (:Fab {id: 'Shenzhen-04'})</code> confirms this component is fabricated exclusively at a single Taiwanese subcontract facility. Page 42 of the Q3 SEC filing explicitly states that fab line substitution requires a 9-month requalification cycle.</p>
-                            </div>
-
-                            <!-- Bottom Action Bar -->
-                            <div class="synthesis-actions-bar">
-                                <button class="btn-synth-action"><span class="icon">📋</span> Copy Synthesis</button>
-                                <button class="btn-synth-action" onclick="document.getElementById('btn-nav-graph').click()"><span class="icon">🕸️</span> Inspect Subgraph (14 nodes)</button>
-                                <button class="btn-synth-action"><span class="icon">💾</span> Save Insight</button>
-                                <span class="grounding-badge-check"><span class="check-icon">🛡️</span> Fully Grounded in 2 Citations</span>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -431,37 +362,37 @@
                 <div class="panel-section" id="panel-node-inspector">
                     <div class="section-top-label">
                         <span>LIVE NODE & ENTITY INSPECTOR</span>
-                        <span class="node-id-badge" id="inspector-node-badge">ID: IC-7A-X</span>
+                        <span class="node-id-badge" id="inspector-node-badge">Ready</span>
                     </div>
                     <div class="node-inspector-card" id="right-node-inspector">
                         <div class="inspector-card-header">
-                            <span class="inspector-badge-type" id="inspector-type-pill">Entity</span>
-                            <h4 class="inspector-title" id="inspector-node-name">IC-7A-X</h4>
+                            <span class="inspector-badge-type" id="inspector-type-pill">Concept</span>
+                            <h4 class="inspector-title" id="inspector-node-name">Neural Network Knowledge Subgraph</h4>
                         </div>
                         <div class="node-attributes-table" id="inspector-node-attributes">
                             <div class="attr-row">
-                                <span class="attr-key">Category:</span>
-                                <span class="attr-val" id="inspector-attr-category">Power Management</span>
-                            </div>
-                            <div class="attr-row">
-                                <span class="attr-key">Status / Risk:</span>
-                                <span class="attr-val text-red strong" id="inspector-attr-risk">Single-Source Vulnerability</span>
+                                <span class="attr-key">Domain:</span>
+                                <span class="attr-val" id="inspector-attr-category">Deep Learning Specialization</span>
                             </div>
                             <div class="attr-row">
                                 <span class="attr-key">Modality:</span>
-                                <span class="attr-val text-orange strong" id="inspector-attr-modality">Visual (Schematic) + Graph</span>
+                                <span class="attr-val text-orange strong" id="inspector-attr-modality">Dense Neural + Graph Topology</span>
                             </div>
                             <div class="attr-row">
-                                <span class="attr-key">Centrality:</span>
-                                <span class="attr-val" id="inspector-attr-centrality">0.87 (Critical Bridge)</span>
+                                <span class="attr-key">Status:</span>
+                                <span class="attr-val text-green strong" id="inspector-attr-risk">Corpus Grounded</span>
+                            </div>
+                            <div class="attr-row">
+                                <span class="attr-key">Corpus Source:</span>
+                                <span class="attr-val" id="inspector-attr-centrality">Deep Learning Andrew Ng .pdf</span>
                             </div>
                         </div>
                         <div class="inspector-relations-box" id="inspector-relations-box">
-                            <div class="relations-label">Connected Graph Relationships:</div>
+                            <div class="relations-label">Active Graph Traversal:</div>
                             <div class="relation-tags" id="inspector-relation-tags">
-                                <span class="rel-tag">[:MANUFACTURED_AT] ➔ Shenzhen-04</span>
-                                <span class="rel-tag">[:DOCUMENTED_IN] ➔ PCB-Schematic-v2.png</span>
-                                <span class="rel-tag">[:RISK_CITED] ➔ SEC-10K-Q3.pdf</span>
+                                <span class="rel-tag">[:EXPLORES] ➔ Deep Learning</span>
+                                <span class="rel-tag">[:CONNECTED_TO] ➔ Gradient Descent</span>
+                                <span class="rel-tag">[:GROUNDED_IN] ➔ Neural Architectures</span>
                             </div>
                         </div>
                         <div class="inspector-actions">
@@ -475,34 +406,34 @@
                     </div>
                 </div>
 
-                <!-- Section: Visual Bounding Evidence -->
+                <!-- Section: Visual & Document Grounding Evidence -->
                 <div class="panel-section">
                     <div class="section-top-label">
-                        <span>VISUAL BOUNDING EVIDENCE</span>
-                        <span class="metric-pct">99.1% Confidence</span>
+                        <span id="provenance-section-label">DOCUMENT CITATION EVIDENCE</span>
+                        <span class="metric-pct" id="provenance-confidence-badge">Verified Grounding</span>
                     </div>
                     <div class="visual-evidence-card">
-                        <div class="schematic-view-box">
-                            <img src="/static/assets/pcb_schematic.jpg" alt="PCB Schematic" class="schematic-img">
-                            <!-- Glowing Spatial Bounding Box Overlay -->
-                            <div class="schematic-bbox" style="top: 36%; left: 44%; width: 14%; height: 26%;">
-                                <span class="bbox-tag">IC-7A-X</span>
+                        <div class="schematic-view-box" id="schematic-view-box">
+                            <img src="/api/v1/documents/Deep%20Learning%20Andrew%20Ng%20.pdf/pages/17/preview" alt="Document Evidence" class="schematic-img" id="provenance-schematic-img" style="cursor: pointer;" title="Click to view document">
+                            <!-- Spatial Bounding Box Overlay -->
+                            <div class="schematic-bbox" id="provenance-bbox" style="display: none;">
+                                <span class="bbox-tag" id="provenance-bbox-tag">Gradient Descent</span>
                             </div>
                         </div>
                         <div class="schematic-caption-row">
-                            <span class="file-name">PCB-Schematic-v2.png</span>
-                            <span class="layer-name">Layer: Top-Copper-VCC</span>
+                            <span class="file-name" id="provenance-file-name">Deep Learning Andrew Ng .pdf</span>
+                            <span class="layer-name" id="provenance-layer-name">Page 17 • Gradient descent algorithm</span>
                         </div>
                     </div>
 
                     <!-- Quoted Document Chunk Excerpt -->
                     <div class="quote-chunk-card">
                         <div class="chunk-card-header">
-                            <span class="doc-badge">SEC Form 10-K (Item 1A Risk Factors)</span>
-                            <span class="chunk-ref">Chunk #42.8</span>
+                            <span class="doc-badge" id="provenance-doc-badge">Deep Learning Andrew Ng .pdf</span>
+                            <span class="chunk-ref" id="provenance-chunk-ref">Verified Context</span>
                         </div>
-                        <p class="chunk-quote-text">
-                            "...We currently rely on a single third-party foundry located in Shenzhen for 100% of our specialized high-voltage driver chips (Part 7A-X)..."
+                        <p class="chunk-quote-text" id="provenance-chunk-quote">
+                            "In this section we will have the full back propagation of the neural network (Just the equations with no explanations). Gradient descent algorithm..."
                         </p>
                     </div>
 
@@ -518,10 +449,7 @@
                         <button class="btn-copy-code" id="btn-copy-cypher">📋 Copy</button>
                     </div>
                     <div class="cypher-code-block">
-                        <pre><code><span class="kw">MATCH</span> p=(d:Document)-[:MENTIONS_RISK]->(c:Component)-[:MANUFACTURED_AT]->(f:Fab)
-<span class="kw">WHERE</span> c.part_id = <span class="str">'7A-X'</span>
-<span class="kw">RETURN</span> p, d.title, f.location, f.risk_index
-<span class="kw">LIMIT</span> <span class="num">25</span>;</code></pre>
+                        <pre><code><span class="kw">MATCH</span> (d:Document {title: <span class="str">'Deep Learning Andrew Ng .pdf'</span>})<br><span class="kw">  -[:CONTAINS_TOPIC]-></span> (t:Topic)<br><span class="kw">  -[:GROUNDED_IN]-></span> (p:Page)<br><span class="kw">RETURN</span> d, t, p <span class="kw">LIMIT</span> <span class="num">25</span>;</code></pre>
                     </div>
                     <div class="cypher-footer-info">
                         <span class="exec-time">Execution time: <strong>4.8ms</strong></span>

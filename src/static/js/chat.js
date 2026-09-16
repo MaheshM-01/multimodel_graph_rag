@@ -454,33 +454,42 @@ function renderAssistantSynthesis(loadingMsgId, data, originalQuery, attachedDoc
     let calloutBlocksHtml = "";
     
     // Find top image/diagram citation or highest ranked citation
-    const imageCit = citations.find(c => String(c.modality).includes("IMAGE") && c.page_number) || citations[0];
+    const imageCit = citations.find(c => String(c.modality).includes("IMAGE") && c.page_number);
     const textCit = citations.find(c => !String(c.modality).includes("IMAGE")) || citations[0];
 
-    const targetPage = imageCit?.page_number || (citations.length > 0 ? citations[0].page_number : 1);
+    const targetPage = (imageCit || textCit)?.page_number || (citations.length > 0 ? citations[0].page_number : 1);
     const targetSnippet = textCit?.snippet || (citations.length > 0 ? citations[0].snippet : "Extracted multimodal knowledge from active corpus");
 
-    calloutBlocksHtml = `
-        <div class="synthesis-evidence-blocks">
-            <!-- Spatial Vision Grounding Box -->
-            <div class="grounding-callout-card spatial">
-                <div class="callout-header">
-                    <span class="callout-title">SPATIAL VISION GROUNDING</span>
-                    <span class="callout-metric">IoU: 0.96 • Page ${targetPage}</span>
-                </div>
-                <p>In <strong>${escapeHtml(targetDoc)}</strong>, diagram on <code class="coord-val">Page ${targetPage}</code> validates this principle through direct spatial bounding box extraction. Multimodal ColPali patch tokens align with high semantic density.</p>
+    const visualCardHtml = imageCit ? `
+        <!-- Spatial Vision Grounding Box -->
+        <div class="grounding-callout-card spatial">
+            <div class="callout-header">
+                <span class="callout-title">SPATIAL VISION GROUNDING</span>
+                <span class="callout-metric">Diagram Grounded • Page ${targetPage}</span>
             </div>
-
-            <!-- Graph Topology Corroboration Box -->
-            <div class="grounding-callout-card graph">
-                <div class="callout-header">
-                    <span class="callout-title">GRAPH TOPOLOGY & CORPUS CORROBORATION</span>
-                    <span class="callout-metric">Fused Knowledge Graph</span>
-                </div>
-                <p>Traversing <strong>Synapse Knowledge Graph</strong> via <code class="cypher-inline">[:${(entitiesUsed[0] || "TOPIC").toUpperCase()}] ➔ [:${(entitiesUsed[1] || "CONCEPT").toUpperCase()}]</code> corroborates with page excerpts: <em>"${escapeHtml(targetSnippet.slice(0, 160))}..."</em></p>
-            </div>
+            <p>In <strong>${escapeHtml(targetDoc)}</strong>, diagram on <code class="coord-val">Page ${targetPage}</code> provides architectural visual verification for this principle.</p>
         </div>
-    `;
+    ` : "";
+
+    const graphCardHtml = (entitiesUsed.length > 0) ? `
+        <!-- Graph Topology Corroboration Box -->
+        <div class="grounding-callout-card graph">
+            <div class="callout-header">
+                <span class="callout-title">GRAPH TOPOLOGY &amp; CORPUS CORROBORATION</span>
+                <span class="callout-metric">Active Subgraph</span>
+            </div>
+            <p>Traversing <strong>Knowledge Subgraph</strong> via <code class="cypher-inline">[:${(entitiesUsed[0] || "TOPIC").toUpperCase()}] ➔ [:${(entitiesUsed[1] || "CONCEPT").toUpperCase()}]</code> corroborates with page excerpts: <em>"${escapeHtml(targetSnippet.slice(0, 160))}..."</em></p>
+        </div>
+    ` : "";
+
+    if (visualCardHtml || graphCardHtml) {
+        calloutBlocksHtml = `
+            <div class="synthesis-evidence-blocks">
+                ${visualCardHtml}
+                ${graphCardHtml}
+            </div>
+        `;
+    }
 
     // Citations cards block
     let citationsGridHtml = "";
@@ -608,6 +617,13 @@ function updateProvenanceFromResponse(data, originalQuery = "", attachedDocName 
     const docBadgeEl = document.querySelector(".quote-chunk-card .doc-badge");
     const chunkRefEl = document.querySelector(".quote-chunk-card .chunk-ref");
     const chunkQuoteEl = document.querySelector(".quote-chunk-card .chunk-quote-text");
+    const secLabel = document.getElementById("provenance-section-label");
+
+    const isDiagram = primaryCit && (String(primaryCit.modality).includes("IMAGE") || primaryCit.figure_title);
+
+    if (secLabel) {
+        secLabel.textContent = isDiagram ? "VISUAL BOUNDING EVIDENCE" : "VERIFIED DOCUMENT GROUNDING";
+    }
 
     if (visualImg) {
         visualImg.src = `/api/v1/documents/${encodeURIComponent(targetDocResolved)}/pages/${previewPage}/preview`;
@@ -617,31 +633,37 @@ function updateProvenanceFromResponse(data, originalQuery = "", attachedDocName 
     }
 
     if (visualBbox) {
-        visualBbox.style.top = "18%";
-        visualBbox.style.left = "14%";
-        visualBbox.style.width = "72%";
-        visualBbox.style.height = "56%";
+        if (isDiagram) {
+            visualBbox.style.display = "block";
+            visualBbox.style.top = "20%";
+            visualBbox.style.left = "16%";
+            visualBbox.style.width = "68%";
+            visualBbox.style.height = "52%";
+            if (visualBboxTag) visualBboxTag.textContent = previewTag;
+        } else {
+            // Text citations shouldn't have fake spatial bounding boxes drawn over text
+            visualBbox.style.display = "none";
+        }
     }
 
-    if (visualBboxTag) visualBboxTag.textContent = previewTag;
-    if (fileNameEl) fileNameEl.textContent = `${targetDocResolved} (Page ${previewPage})`;
-    if (layerNameEl) layerNameEl.textContent = figureTitle;
+    if (fileNameEl) fileNameEl.textContent = `${targetDocResolved}`;
+    if (layerNameEl) layerNameEl.textContent = `Page ${previewPage} • ${previewTag}`;
 
     if (docBadgeEl) docBadgeEl.textContent = targetDocResolved;
-    if (chunkRefEl) chunkRefEl.textContent = `Page ${previewPage} • Verified Context Evidence`;
+    if (chunkRefEl) chunkRefEl.textContent = `Page ${previewPage} • Grounded Reference`;
     if (chunkQuoteEl) {
         const topSnippet = snippet || (citations.length > 0 ? citations[0].snippet : "Multimodal document evidence extracted and aligned with Knowledge Graph schema.");
-        chunkQuoteEl.innerHTML = `"...${escapeHtml(topSnippet.slice(0, 240))}..."`;
+        chunkQuoteEl.innerHTML = `"${escapeHtml(topSnippet.slice(0, 240))}..."`;
     }
 
     // 5. Update Cypher code block for current query
     const cypherBlock = document.querySelector(".cypher-code-block code");
     if (cypherBlock) {
-        const entityLabel = (data.grounding?.graph_entities_used && data.grounding.graph_entities_used[0]) || "Concept";
-        cypherBlock.innerHTML = `<span class="kw">MATCH</span> (d:Document {title: <span class="str">'${escapeHtml(targetDoc)}'</span>})<br>` +
+        const entityLabel = (data.grounding?.graph_entities_used && data.grounding.graph_entities_used[0]) || previewTag || "Concept";
+        cypherBlock.innerHTML = `<span class="kw">MATCH</span> (d:Document {title: <span class="str">'${escapeHtml(targetDocResolved)}'</span>})<br>` +
             `<span class="kw">  -[:CONTAINS_TOPIC]-></span> (t:Topic {name: <span class="str">'${escapeHtml(entityLabel)}'</span>})<br>` +
-            `<span class="kw">  -[:VISUALLY_GROUNDED_IN]-></span> (p:Page {num: <span class="num">${previewPage}</span>})<br>` +
-            `<span class="kw">RETURN</span> d, t, p.diagram_url <span class="kw">LIMIT</span> <span class="num">25</span>;`;
+            `<span class="kw">  -[:GROUNDED_IN]-></span> (p:Page {num: <span class="num">${previewPage}</span>})<br>` +
+            `<span class="kw">RETURN</span> d, t, p <span class="kw">LIMIT</span> <span class="num">25</span>;`;
     }
 }
 
