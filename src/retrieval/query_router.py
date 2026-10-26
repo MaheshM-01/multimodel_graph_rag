@@ -1,54 +1,77 @@
-"""Smart Query Router classifying intents and dynamically activating optimal retrieval channels."""
+"""Smart Query Router classifying intents, selecting domain indices (MoDI), and activating retrieval channels."""
 
 import re
+from typing import Optional
 from src.core.logging import logger
-from src.domain.retrieval import QueryIntent, QueryRequest, RouterDecision
+from src.domain.retrieval import DomainType, QueryIntent, QueryRequest, RouterDecision
+from src.retrieval.domain_router import DomainClusterRouter
 
 
 class QueryRouter:
-    """Classifies user query intent and selects the optimal subset of the 4 retrieval channels.
+    """Classifies user query intent, routes to specialized domain clusters (MoDI),
 
-    Prevents cold, unnecessary traversals and dynamically balances latency vs recall.
+    and selects the optimal subset of retrieval channels (MoR).
+    Prevents noise, cross-domain false positives, and cold unnecessary traversals.
     """
 
-    def __init__(self):
-        logger.info("Initialized Smart QueryRouter")
+    def __init__(self, domain_router: Optional[DomainClusterRouter] = None):
+        self.domain_router = domain_router or DomainClusterRouter()
+        logger.info("Initialized Smart QueryRouter with Mixture of Domain Indices (MoDI) support.")
 
     async def route(self, request: QueryRequest) -> RouterDecision:
         query = (request.query_text or "").strip()
         query_lower = query.lower()
 
-        # 1. Visual / Chart intent detection
+        # 1. Evaluate Domain Embedding Router (MoDI)
+        domain_routing = self.domain_router.route_query(
+            query=query,
+            manual_override=request.target_domain,
+        )
+        primary_domain = domain_routing.primary_domain
+
+        # 2. Visual / Chart intent detection
         if any(w in query_lower for w in ["chart", "diagram", "figure", "graph of", "visualize", "plot", "infographic", "show me image"]):
             return RouterDecision(
                 intent=QueryIntent.VISUAL_COMPARATIVE,
                 active_channels=["visual", "sparse", "graph"],
                 channel_weights={"visual": 0.50, "sparse": 0.25, "graph": 0.15, "dense": 0.10},
                 extracted_entities=self._extract_entities(query),
-                reasoning="Query requests visual artifacts (charts/diagrams). Prioritizing ColPali/SigLIP visual search.",
+                domain_routing=domain_routing,
+                reasoning=(
+                    f"Visual artifact request in domain [{primary_domain.value}]. "
+                    f"Pruned {domain_routing.search_space_pruned_pct:.1f}% noise. Prioritizing ColPali/SigLIP visual search."
+                ),
             )
 
-        # 2. Global / Thematic Community intent detection
+        # 3. Global / Thematic Community intent detection
         if any(w in query_lower for w in ["summarize", "main themes", "overview", "overall", "comprehensive report", "general summary"]):
             return RouterDecision(
                 intent=QueryIntent.GLOBAL_COMMUNITY,
                 active_channels=["graph", "dense"],
                 channel_weights={"graph": 0.60, "dense": 0.40, "sparse": 0.0, "visual": 0.0},
                 extracted_entities=self._extract_entities(query),
-                reasoning="Broad, thematic holistic query. Prioritizing Global community summaries.",
+                domain_routing=domain_routing,
+                reasoning=(
+                    f"Broad thematic query in domain [{primary_domain.value}]. "
+                    f"Pruned {domain_routing.search_space_pruned_pct:.1f}% noise. Prioritizing Global community reports."
+                ),
             )
 
-        # 3. Supply Chain / Enterprise Entity Knowledge Graph intent detection
-        if any(w in query_lower for w in ["supply chain", "semiconductor", "single-source", "single source", "vendor", "ic-7a-x", "shenzhen", "tsmc", "foundry", "board member", "ownership", "ceo"]):
+        # 4. Supply Chain / Corporate Entity Knowledge Graph intent detection
+        if any(w in query_lower for w in ["supply chain", "semiconductor", "single-source", "single source", "vendor", "ic-7a-x", "shenzhen", "tsmc", "foundry", "board member", "ownership", "ceo"]) or primary_domain == DomainType.CORPORATE_GOVERNANCE:
             return RouterDecision(
                 intent=QueryIntent.FACTUAL_ENTITY,
                 active_channels=["graph", "sparse", "dense"],
                 channel_weights={"graph": 0.65, "sparse": 0.20, "dense": 0.15, "visual": 0.0},
                 extracted_entities=self._extract_entities(query),
-                reasoning="Enterprise or Supply Chain entity query. Prioritizing Knowledge Graph traversal.",
+                domain_routing=domain_routing,
+                reasoning=(
+                    f"Corporate Governance / Supply Chain traversal in domain [{primary_domain.value}]. "
+                    f"Pruned {domain_routing.search_space_pruned_pct:.1f}% noise. Prioritizing Neo4j Knowledge Graph."
+                ),
             )
 
-        # 4. Analytical / Aggregation intent detection
+        # 5. Analytical / Aggregation intent detection
         if any(w in query_lower for w in ["how many", "count of", "list all", "total number", "average of", "more than", "greater than"]):
             return RouterDecision(
                 intent=QueryIntent.ANALYTICAL_CYPHER,
@@ -56,27 +79,39 @@ class QueryRouter:
                 channel_weights={"graph": 0.65, "sparse": 0.25, "dense": 0.10, "visual": 0.0},
                 extracted_entities=self._extract_entities(query),
                 suggested_cypher=self._suggest_cypher(query),
-                reasoning="Quantitative or aggregation query. Activating Text2Cypher and Sparse exact matching.",
+                domain_routing=domain_routing,
+                reasoning=(
+                    f"Quantitative / Aggregation query in domain [{primary_domain.value}]. "
+                    f"Pruned {domain_routing.search_space_pruned_pct:.1f}% noise. Activating Text2Cypher."
+                ),
             )
 
-        # 5. Technical Conceptual Intent (Deep Learning, Transformers, Math, Foundations)
+        # 6. Technical Conceptual Intent (Deep Learning, Transformers, Math, Engineering)
         entities = self._extract_entities(query)
-        if any(w in query_lower for w in ["transformer", "attention", "back propagation", "backprop", "backward", "neural network", "deep neural", "perceptron"]):
+        if any(w in query_lower for w in ["transformer", "attention", "back propagation", "backprop", "backward", "neural network", "deep neural", "perceptron", "classification", "regression"]) or primary_domain == DomainType.ENGINEERING_TECHNICAL:
             return RouterDecision(
                 intent=QueryIntent.FACTUAL_ENTITY,
                 active_channels=["sparse", "dense", "visual", "graph"],
                 channel_weights={"sparse": 0.45, "dense": 0.35, "visual": 0.10, "graph": 0.10},
                 extracted_entities=entities,
-                reasoning="Core technical ML concept query. Activating high-precision BM25 and dense semantic search.",
+                domain_routing=domain_routing,
+                reasoning=(
+                    f"Technical engineering concept query in domain [{primary_domain.value}]. "
+                    f"Pruned {domain_routing.search_space_pruned_pct:.1f}% noise. Activating exact BM25 and dense semantic search."
+                ),
             )
 
-        # 6. General Quad-Hybrid (Fallback)
+        # 7. General Quad-Hybrid (Fallback)
         return RouterDecision(
             intent=QueryIntent.GENERAL_HYBRID,
             active_channels=["dense", "sparse", "visual", "graph"],
             channel_weights={"dense": 0.35, "graph": 0.35, "sparse": 0.15, "visual": 0.15},
             extracted_entities=entities,
-            reasoning="Broad ambiguous query. Activating all 4 channels (Quad-Hybrid) for maximum recall.",
+            domain_routing=domain_routing,
+            reasoning=(
+                f"Multi-faceted hybrid query in domain [{primary_domain.value}]. "
+                f"Pruned {domain_routing.search_space_pruned_pct:.1f}% noise. Activating Quad-Hybrid channels."
+            ),
         )
 
     def _extract_entities(self, query: str) -> list[str]:
@@ -99,6 +134,8 @@ class QueryRouter:
             ("back propagation", "Backpropagation"),
             ("backprop", "Backpropagation"),
             ("neural network", "Neural Network"),
+            ("binary classification", "Binary Classification"),
+            ("sentiment classification", "Sentiment Classification"),
         ]
         for pat, ent in domain_patterns:
             if pat in q_lower:

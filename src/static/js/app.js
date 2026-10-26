@@ -76,11 +76,17 @@ function initDropdowns() {
     const ragMenu = document.getElementById("rag-dropdown-menu");
     const ragText = document.getElementById("selected-rag-text");
 
+    const domainChip = document.getElementById("chip-domain-selector");
+    const domainMenu = document.getElementById("domain-dropdown-menu");
+    const domainText = document.getElementById("selected-domain-text");
+
     function closeAllDropdowns() {
         if (modelMenu) modelMenu.classList.remove("show");
         if (modelChip) modelChip.classList.remove("open");
         if (ragMenu) ragMenu.classList.remove("show");
         if (ragChip) ragChip.classList.remove("open");
+        if (domainMenu) domainMenu.classList.remove("show");
+        if (domainChip) domainChip.classList.remove("open");
     }
 
     if (modelChip && modelMenu) {
@@ -127,6 +133,34 @@ function initDropdowns() {
                 if (ragText) ragText.textContent = val;
                 closeAllDropdowns();
                 showToast(`Retriever configured: ${val}`, "info");
+            });
+        });
+    }
+
+    if (domainChip && domainMenu) {
+        domainChip.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isOpen = domainMenu.classList.contains("show");
+            closeAllDropdowns();
+            if (!isOpen) {
+                domainMenu.classList.add("show");
+                domainChip.classList.add("open");
+            }
+        });
+
+        domainMenu.querySelectorAll(".dropdown-item").forEach(item => {
+            item.addEventListener("click", (e) => {
+                e.stopPropagation();
+                domainMenu.querySelectorAll(".dropdown-item").forEach(i => i.classList.remove("active"));
+                item.classList.add("active");
+                const domainVal = item.getAttribute("data-domain");
+                const domainLabel = item.textContent.split("(")[0].trim();
+                if (domainText) {
+                    domainText.textContent = domainLabel;
+                    domainText.setAttribute("data-domain-key", domainVal);
+                }
+                closeAllDropdowns();
+                showToast(`MoDI Domain Partition: ${domainLabel}`, "info");
             });
         });
     }

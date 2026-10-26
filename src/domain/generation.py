@@ -30,6 +30,10 @@ class GroundingMetadata(BaseModel):
     graph_relationships_used: list[str] = Field(default_factory=list)
     subgraph: SubGraph | None = None
     communities_consulted: list[str] = Field(default_factory=list)
+    domain_routing: dict[str, Any] | None = None
+    generator_name: str | None = None
+    faithfulness_score: float | None = None
+    search_space_pruned_pct: float = 0.0
 
 
 class RAGRequest(BaseModel):
@@ -37,6 +41,7 @@ class RAGRequest(BaseModel):
 
     query: str
     document_name: str | None = None
+    domain: str | None = None
     model: str | None = None
     rag_mode: str | None = None
     image_url_or_path: str | None = None
@@ -53,4 +58,6 @@ class RAGResponse(BaseModel):
     answer: str
     citations: list[MultimodalCitation] = Field(default_factory=list)
     grounding: GroundingMetadata
+    domain: str | None = None
+    search_space_pruned_pct: float = 0.0
     latency_seconds: float = 0.0

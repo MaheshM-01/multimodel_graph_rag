@@ -16,6 +16,47 @@ class QueryIntent(str, Enum):
     GENERAL_HYBRID = "general_hybrid"         # Target: All 4 channels (Quad-Hybrid)
 
 
+class DomainType(str, Enum):
+    """Domain index taxonomy for Mixture of Domain Indices (MoDI).
+
+    Prevents noise, cross-domain false positives, and semantic drift across millions of documents.
+    """
+
+    ENGINEERING_TECHNICAL = "engineering_technical"   # AI, Deep Learning, Transformers, Algorithms, Code
+    HARDWARE_SCHEMATICS = "hardware_schematics"       # Semiconductors, ICs, Pinouts, Schematics, PCB
+    FINANCIAL_REGULATORY = "financial_regulatory"     # Balance sheets, SEC filings, Revenue, GAAP
+    LEGAL_COMPLIANCE = "legal_compliance"             # Contracts, NDAs, Compliance, Patents, IP
+    CORPORATE_GOVERNANCE = "corporate_governance"     # Supply chain, Board of Directors, Ownership, Vendor
+    MEDICAL_BIOMEDICAL = "medical_biomedical"         # Clinical trials, Healthcare, BioBERT research
+    CROSS_DOMAIN_ALL = "cross_domain_all"             # Global federated index fallback
+
+
+class DomainScore(BaseModel):
+    """Individual domain similarity and confidence score."""
+
+    domain: DomainType
+    similarity: float
+    confidence: float
+    label: str
+
+
+class DomainRoutingResult(BaseModel):
+    """Output from the Query Domain Embedding Router selecting specialized knowledge indices."""
+
+    primary_domain: DomainType
+    secondary_domain: DomainType | None = None
+    scores: list[DomainScore] = Field(default_factory=list)
+    search_space_pruned_pct: float = Field(
+        default=0.0,
+        description="Percentage of global knowledge corpus pruned from search space (e.g. 83.3%)",
+    )
+    active_collections: list[str] = Field(
+        default_factory=list,
+        description="Target Qdrant/index collections narrowed down for retrieval",
+    )
+    reasoning: str = ""
+
+
 class RouterDecision(BaseModel):
     """Output from the Query Router orchestrating retrieval execution."""
 
@@ -30,6 +71,7 @@ class RouterDecision(BaseModel):
     extracted_entities: list[str] = Field(default_factory=list)
     suggested_cypher: str | None = None
     reasoning: str | None = None
+    domain_routing: DomainRoutingResult | None = None
 
 
 class FilterCriteria(BaseModel):
@@ -47,6 +89,7 @@ class QueryRequest(BaseModel):
 
     query_text: str | None = None
     query_image_url_or_path: str | None = None
+    target_domain: str | None = None
     top_k: int = 10
     include_graph_subgraph: bool = True
     include_community_reports: bool = True

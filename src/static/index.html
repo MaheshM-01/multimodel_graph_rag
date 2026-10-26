@@ -243,6 +243,20 @@
                                     <div class="dropdown-item" data-rag="Dense Semantic Search">Dense Semantic Search (Qdrant 768-dim)</div>
                                 </div>
                             </div>
+                            <div class="selector-chip dropdown-trigger" id="chip-domain-selector" tabindex="0">
+                                <span class="domain-mode-icon">🌐</span>
+                                <span>Domain: <strong id="selected-domain-text">Auto (MoDI Centroid)</strong></span>
+                                <span class="arrow-down">▾</span>
+                                <div class="dropdown-menu" id="domain-dropdown-menu" style="min-width: 290px;">
+                                    <div class="dropdown-item active" data-domain="auto">Auto Routing (Embedding Centroid Router)</div>
+                                    <div class="dropdown-item" data-domain="engineering_technical">Engineering & Technical (AI / Deep Learning / Code)</div>
+                                    <div class="dropdown-item" data-domain="hardware_schematics">Hardware & Schematics (ICs / Pinouts / PCBs)</div>
+                                    <div class="dropdown-item" data-domain="financial_regulatory">Financial & Regulatory (10-K / Balance Sheets / GAAP)</div>
+                                    <div class="dropdown-item" data-domain="legal_compliance">Legal & Compliance (Contracts / Patents / NDAs)</div>
+                                    <div class="dropdown-item" data-domain="corporate_governance">Corporate Governance & Supply Chain (TSMC / Vendors)</div>
+                                    <div class="dropdown-item" data-domain="medical_biomedical">Medical & Biomedical (Pharma / BioBERT / Trials)</div>
+                                </div>
+                            </div>
                         </div>
                         <div class="sub-bar-right">
                             <span class="token-counter">Token Budget: <strong>1,420 / 128,000</strong></span>

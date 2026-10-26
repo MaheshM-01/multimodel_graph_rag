@@ -1,4 +1,4 @@
-"""Multimodal Graph RAG query endpoint with Query Routing, Quad-Hybrid Retrieval, and 2-Stage Reranking."""
+"""Multimodal Graph RAG query endpoint with Query Routing, MoDI Domain Partitioning, Quad-Hybrid Retrieval, and 2-Stage Reranking."""
 
 from fastapi import APIRouter, Depends
 from src.api.dependencies import (
@@ -27,18 +27,29 @@ async def query_rag(
     reranker: TwoStageMultimodalReranker = Depends(get_reranker),
     synthesizer: MultimodalSynthesizer = Depends(get_synthesizer),
 ) -> RAGResponse:
-    """Execute end-to-end Multimodal Graph RAG: Intent Routing -> Quad-Hybrid Fusion -> 2-Stage Reranking -> Synthesis."""
-    logger.info(f"Incoming query: '{request.query}', document: '{request.document_name}'")
+    """Execute end-to-end Multimodal Graph RAG:
+
+    Domain Routing (MoDI) -> Intent Routing -> Quad-Hybrid Fusion -> 2-Stage Reranking -> Synthesis with Grounding Critic.
+    """
+    logger.info(f"Incoming query: '{request.query}', document: '{request.document_name}', domain: '{request.domain}'")
 
     query_req = QueryRequest(
         query_text=request.query,
         query_image_url_or_path=request.image_url_or_path,
+        target_domain=request.domain,
         top_k=12,
     )
 
-    # 1. Intent Routing & Dynamic Channel Weighting
+    # 1. Intent Routing & Mixture of Domain Indices (MoDI) Clustering
     decision = await router_agent.route(query_req)
-    logger.info(f"[QueryRouter] Intent: {decision.intent.value}, channels: {decision.active_channels}")
+    domain_info = None
+    if decision.domain_routing:
+        domain_info = decision.domain_routing.model_dump()
+        logger.info(
+            f"[MoDI Routing] Domain: {decision.domain_routing.primary_domain.value} "
+            f"| Confidence: {decision.domain_routing.scores[0].confidence:.1%} "
+            f"| Pruned: {decision.domain_routing.search_space_pruned_pct:.1f}% noise"
+        )
 
     # 2. Quad-Hybrid Retrieval (Dense, Sparse BM25, Visual, Graph) with Weighted RRF
     retrieved_items = await retriever.retrieve(
@@ -73,6 +84,10 @@ async def query_rag(
     # 4. 2-Stage Multimodal Reranking (BGE-Reranker-Large Cross-Encoder + ColPali Visual Grounding)
     reranked_items = await reranker.rerank(request.query, retrieved_items, top_k=5)
 
-    # 5. Multimodal Grounded Synthesis with Citations
-    response = await synthesizer.synthesize(request, reranked_items)
+    # 5. Multimodal Grounded Synthesis with Citations and Grounding Critic
+    response = await synthesizer.synthesize(
+        request,
+        reranked_items,
+        domain_routing_info=domain_info,
+    )
     return response
